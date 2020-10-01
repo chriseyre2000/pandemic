@@ -1,26 +1,31 @@
 defmodule PandemicModelTest do
   use ExUnit.Case
-  doctest PandemicModel
   alias PandemicModel.Cities
 
   test "All city links go to a known city" do
     c = Cities.all_cities()
-    linked_to = c |> Enum.map( &( &1.links )) |> List.flatten |> Enum.sort |> Enum.uniq
-    city_names = c |> Enum.map( &( &1.id ))
+    linked_to = c 
+      |> Enum.map( &( &1.links )) 
+      |> List.flatten 
+      |> Enum.sort |> Enum.uniq
+    city_names = c 
+      |> Enum.map( &( &1.id ))
 
     assert linked_to -- city_names == []
   end
 
   test "City id's are unique" do
     c = Cities.all_cities()
-    city_ids = c |> Enum.map( &( &1.id ))
+    city_ids = c 
+      |> Enum.map( &( &1.id ))
 
     assert city_ids == Enum.uniq(city_ids)
   end
 
   test "City name are unique" do
     c = Cities.all_cities()
-    city_names = c |> Enum.map( &( &1.name ))
+    city_names = c 
+      |> Enum.map( &( &1.name ))
 
     assert city_names == Enum.uniq(city_names)
   end

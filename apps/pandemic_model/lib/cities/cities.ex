@@ -55,5 +55,13 @@ defmodule PandemicModel.Cities do
   
   def find_by(id) do 
     all_cities() |> Enum.find(&( &1.id == id ))
+  end
+  
+  def all_keys() do
+    all_cities() |> Enum.map(&Map.get(&1, :id)) 
+  end
+  
+  def city_colour(id) do
+    find_by(id).colour
   end  
 end  
