@@ -1,3 +1,0 @@
-defmodule PandemicModel do
-
-end

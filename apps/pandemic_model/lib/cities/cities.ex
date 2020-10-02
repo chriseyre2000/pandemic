@@ -63,5 +63,5 @@ defmodule PandemicModel.Cities do
   
   def city_colour(id) do
     find_by(id).colour
-  end  
+  end
 end  

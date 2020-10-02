@@ -24,7 +24,7 @@ defmodule PandemicModel.Board do
   
   #This ignores the superbug challenge for now
   def won?(board) do
-    board.disease_state |> Map.values |> Enum.all?( &(&1.state != :active))
+    board.disease_state |> Map.values |> Enum.all?( &(&1.state not in [:active]))
   end
   
   def lost?(model) do
@@ -48,20 +48,24 @@ defmodule PandemicModel.Board do
     %__MODULE__{ board | disease_state: state  }
   end
   
-  defp add_cube_to_city(board, city, colour, quantity) do
+  def add_cube_to_city(board, city, colour, quantity) do
     infected_city_counts = board.cities_with_disease[city]
     infected_city_counts = Map.update(infected_city_counts, colour, 0, &( min( &1 + quantity, 3)))
     %__MODULE__{board | cities_with_disease: Map.put(board.cities_with_disease, city, infected_city_counts)}
   end  
 
-  def infect(%__MODULE__{} = board, quantity \\ 1) when quantity in [1,2,3] do
-    [infected_city | remainder] = board.infection_deck
-    board = %{board | infection_deck: remainder, infection_discard_pile: [infected_city | board.infection_discard_pile]}
-    infected_city_colour = Cities.city_colour(infected_city)
+  def move_top_card_to_discard_pile(board) do
+    %{board | infection_deck: tl(board.infection_deck ), infection_discard_pile: Enum.concat([ hd(board.infection_deck)], board.infection_discard_pile )}
+  end  
 
+  defp infect(%__MODULE__{} = board, quantity \\ 1) when quantity in [1,2,3] do
+    infected_city  = hd(board.infection_deck)
+    board = move_top_card_to_discard_pile(board)
+    infected_city_colour = Cities.city_colour(infected_city)
     infected_city_count = city_infection_count(board, infected_city, infected_city_colour)
 
-    if (infected_city_count + quantity < 4) do
+
+    if ((infected_city_count + quantity) < 4) do
       board 
       |> add_cube_to_city(infected_city, infected_city_colour, quantity)
       |> remove_cubes_from_disease(infected_city_colour, quantity)
@@ -82,11 +86,11 @@ defmodule PandemicModel.Board do
     infect_outbreak(board, cities_to_infect, existing_infections, infection_colour)
   end
   
-  def infect_outbreak(board, [], _, _) do
+  defp infect_outbreak(board, [], _, _) do
     board 
   end
   
-  def infect_outbreak(board, [infected_city | tail], existing_infections, infection_colour) do 
+  defp infect_outbreak(board, [infected_city | tail], existing_infections, infection_colour) do 
     case city_infection_count(board, infected_city, infection_colour) do
       3 -> 
         board = increment_outbreak(board)
@@ -145,7 +149,7 @@ defmodule PandemicModel.Board do
   defp additional_infect(board, remaining_times) do
     board 
       |> infect()
-      additional_infect(board, remaining_times - 1)
+      |> additional_infect(remaining_times - 1)
   end  
   
   def setup_board(board) do

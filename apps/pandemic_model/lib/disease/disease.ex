@@ -3,14 +3,14 @@ defmodule PandemicModel.Disease do
   @enforce_keys @disease_keys
   defstruct @disease_keys
 
-  defguard is_valid_state(state) when state in [:active, :cured, :erradicated] 
+  defguardp is_valid_state(state) when state in [:active, :cured, :erradicated] 
 
-  def new() do
-    %__MODULE__{state: :active, unused_cubes: 24  }
+  def new(state \\ :active, unused_cubes \\ 24) when is_valid_state(state) do
+    %__MODULE__{state: state, unused_cubes: unused_cubes  }
   end
 
   def remove_cubes(disease, count) do
-    %{disease | unused_cubes: disease.unused_cubes - count}
+    %__MODULE__{disease | unused_cubes: disease.unused_cubes - count}
   end  
   
   def diseases do
