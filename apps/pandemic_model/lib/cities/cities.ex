@@ -64,4 +64,12 @@ defmodule PandemicModel.Cities do
   def city_colour(id) do
     find_by(id).colour
   end
+
+  def city_links(id) do
+    find_by(id).links
+  end
+
+  def city_name(id) do
+    find_by(id).name
+  end
 end  

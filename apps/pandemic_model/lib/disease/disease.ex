@@ -12,7 +12,20 @@ defmodule PandemicModel.Disease do
   def remove_cubes(disease, count) do
     %__MODULE__{disease | unused_cubes: disease.unused_cubes - count}
   end  
-  
+
+  def add_cubes(disease, count) do
+    %__MODULE__{disease | unused_cubes: disease.unused_cubes + count}
+  end  
+
+  def cure_disease(disease) do
+    if (disease.unused_cubes == 24) do
+      %__MODULE__{disease | state: :erradicated}
+    else
+      %__MODULE__{disease | state: :cured}
+    end    
+  end  
+
+
   def diseases do
     ~w[red blue black yellow]a
   end  

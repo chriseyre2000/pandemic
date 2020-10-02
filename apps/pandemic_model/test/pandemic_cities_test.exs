@@ -3,7 +3,9 @@ defmodule PandemicModel.Cities.Test do
   alias PandemicModel.{Cities, City}
   
   test "We we always have paris" do
-    assert "Paris" == Cities.find_by(:paris).name 
+    assert "Paris" == Cities.find_by(:paris).name
+    assert "Paris" == Cities.city_name(:paris)
+
   end
   
   test "We have 48 Cities" do
@@ -22,13 +24,13 @@ defmodule PandemicModel.Cities.Test do
   test "All city links go to a known city" do
     c = Cities.all_cities()
     linked_to = c 
-      |> Enum.map( &( &1.links )) 
+      |> Enum.map(&(&1.links))
       |> List.flatten 
       |> Enum.sort |> Enum.uniq
-    city_names = c 
+    city_ids = c 
       |> Enum.map( &( &1.id ))
 
-    assert linked_to -- city_names == []
+    assert linked_to -- city_ids == []
   end
 
   test "City id's are unique" do
