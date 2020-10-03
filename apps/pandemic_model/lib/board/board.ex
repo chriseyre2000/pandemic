@@ -14,12 +14,14 @@ defmodule PandemicModel.Board do
       outbreaks: 0,
       disease_state: Disease.diseases |>  Map.new(fn i -> {i, Disease.new()} end),
       cities_with_disease: Cities.all_keys() |> Map.new(fn i -> {i, template_disease_count} end),
-      research_stations: [:altlanta],
+      research_stations: [:atlanta],
       players: [],
       player_deck: [],
       player_discard_pile: []
     }
   end
+
+  ### Query API ###
 
   def research_station?(board, city) do
     city in board.research_stations
@@ -28,23 +30,23 @@ defmodule PandemicModel.Board do
   def count_research_stations(board) do
     Enum.count(board.research_stations)
   end
-  
-  def add_research_station(board, city) do
-    %{board | research_stations: Enum.concat([city], board.research_stations)}
-  end  
 
   def current_infection_rate(board) do
     hd(board.infection_rate)
   end
-  
+
   def disease_active?(board, disease_colour) do
     board.disease_state[disease_colour].state == :active
   end 
 
   def disease_erradicated?(board, disease_colour) do
     board.disease_state[disease_colour].state == :erradicated
-  end  
+  end
   
+  def get_remaining_cubes_for_disease(board, colour) do
+    board.disease_state[colour].unused_cubes
+  end
+
   #This ignores the superbug challenge for now
   def won?(board) do
     board.disease_state |> Map.values |> Enum.all?( &(&1.state not in [:active]))
@@ -53,6 +55,16 @@ defmodule PandemicModel.Board do
   def lost?(model) do
     model.outbreaks == 8 or model.infection_deck == [] or Enum.any?( model.disease_state, &(&1  < 0) ) # or player_deck is empty 
   end
+
+  def city_infection_count(board, city, colour) do
+    board.cities_with_disease[city][colour]
+  end
+  
+  ### Command API ###
+
+  def add_research_station(board, city) do
+    %{board | research_stations: Enum.concat([city], board.research_stations)}
+  end  
 
   def cure_disease(board, cards) do
     disease_colour = 
@@ -68,14 +80,6 @@ defmodule PandemicModel.Board do
     %{board | player_discard_pile: cards ++ board.player_discard_pile}
   end  
 
-  def city_infection_count(board, city, colour) do
-    board.cities_with_disease[city][colour]
-  end
-
-  def get_remaining_cubes_for_disease(board, colour) do
-    board.disease_state[colour].unused_cubes
-  end
-  
   def increment_outbreak(board) do
     %{board | outbreaks: board.outbreaks + 1}
   end  

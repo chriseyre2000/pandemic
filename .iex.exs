@@ -1,1 +1,1 @@
-alias PandemicModel.Board
+alias PandemicModel.{Board, Cities}
