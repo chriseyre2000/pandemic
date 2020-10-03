@@ -5,9 +5,12 @@ defmodule PandemicModel.Cities.Test do
   test "We we always have paris" do
     assert "Paris" == Cities.find_by(:paris).name
     assert "Paris" == Cities.city_name(:paris)
-
   end
   
+  test "all roads go via paris" do
+    assert  [:london, :madrid, :essen, :milan, :algiers] == Cities.city_links(:paris)
+  end 
+
   test "We have 48 Cities" do
     assert 48 == Cities.all_cities() |> Enum.count()
   end
