@@ -8,3 +8,5 @@ Currently the only project that exists is:
 
 - Pandemic Model
 
+The aim is to build a domain model that does not rely on any external Elixir libraries.
+
