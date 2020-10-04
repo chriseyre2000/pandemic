@@ -72,7 +72,7 @@ defmodule PandemicModel.Epidemic.Test do
 
       assert Cities.find_by(city).links
         |> Enum.map(fn neighbour -> Board.city_infection_count(b, neighbour, colour) end)
-        |> Enum.all?(&(&1 == 1))
+        |> Enum.all?(&(&1 in [1,2])) # This needs to cater for cities being close to each other
     end
   end
 
