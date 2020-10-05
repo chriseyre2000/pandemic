@@ -1,5 +1,4 @@
 defmodule PandemicModel.Board do
-  require Logger
 
   alias PandemicModel.{Cities, Disease, PlayerCard}
 
