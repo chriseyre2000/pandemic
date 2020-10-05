@@ -4,8 +4,15 @@ defmodule PandemicModel.Board do
   alias PandemicModel.{Cities, Disease, PlayerCard}
   defstruct ~w[infection_deck infection_discard_pile outbreaks infection_rate disease_state cities_with_disease research_stations player_deck player_discard_pile]a
 
+
+  @spec new :: __MODULE__
+  @doc """
+  Creates a new board.
+
+  The board has not yet had the initial infection cards dealt
+  """
   def new() do
-    template_disease_count = Disease.diseases |>  Map.new(fn i -> {i, 0} end)
+    zero_disease_count = Disease.diseases |>  Map.new(fn i -> {i, 0} end)
 
     %__MODULE__{
       infection_deck: Cities.all_keys() |> Enum.shuffle(),
@@ -13,7 +20,7 @@ defmodule PandemicModel.Board do
       infection_rate: [2, 2, 2, 3, 3, 4],
       outbreaks: 0,
       disease_state: Disease.diseases |>  Map.new(fn i -> {i, Disease.new()} end),
-      cities_with_disease: Cities.all_keys() |> Map.new(fn i -> {i, template_disease_count} end),
+      cities_with_disease: Cities.all_keys() |> Map.new(fn i -> {i, zero_disease_count} end),
       research_stations: [:atlanta],
       player_deck: [],
       player_discard_pile: []
@@ -22,6 +29,10 @@ defmodule PandemicModel.Board do
 
   ### Query API ###
 
+  @spec research_station?(__MODULE__, atom) :: boolean
+  @doc """
+  Does the given city have a research station
+  """
   def research_station?(board, city) do
     city in board.research_stations
   end
@@ -71,12 +82,12 @@ defmodule PandemicModel.Board do
   end
 
   def cure_disease(board, cards) do
-    disease_colour =
-      hd(cards)
+    disease_colour = cards
+      |> hd()
       |> Map.get(:city)
       |> Cities.city_colour()
     board
-      |> do_cure_disease(disease_colour)
+      |> record_disease_cured(disease_colour)
       |> add_to_player_discard_pile(cards)
   end
 
@@ -88,9 +99,9 @@ defmodule PandemicModel.Board do
     %{board | outbreaks: board.outbreaks + 1}
   end
 
-  defp do_cure_disease(%__MODULE__{disease_state: state } = board, colour) do
+  defp record_disease_cured(%__MODULE__{disease_state: state } = board, colour) do
     state = Map.put(state, colour, Disease.cure_disease(state[colour]) )
-    %__MODULE__{ board | disease_state: state  }
+    %{ board | disease_state: state  }
   end
 
   def treat_disease(%__MODULE__{} = board, city, colour) do
@@ -104,13 +115,13 @@ defmodule PandemicModel.Board do
     board
       |> add_cubes_to_disease(colour, to_remove)
       |> treat_disease_for_city(city, colour, to_remove)
-      |> handle_possible_disease_erradication(colour)
+      |> possible_disease_erradication(colour)
   end
 
-  defp handle_possible_disease_erradication(board, colour) do
+  defp possible_disease_erradication(board, colour) do
     cond do
       disease_active?(board, colour) -> board
-      true -> do_cure_disease(board, colour)
+      true -> record_disease_cured(board, colour)
     end
   end
 
@@ -124,7 +135,7 @@ defmodule PandemicModel.Board do
     %__MODULE__{ board | disease_state: state  }
   end
 
-  defp add_cube_to_city(board, city, colour, quantity) do
+  defp increase_city_disease_count(board, city, colour, quantity) do
     infected_city_counts = board.cities_with_disease[city]
     infected_city_counts = Map.update(infected_city_counts, colour, 0, &( min( &1 + quantity, 3)))
     %__MODULE__{board | cities_with_disease: Map.put(board.cities_with_disease, city, infected_city_counts)}
@@ -146,14 +157,13 @@ defmodule PandemicModel.Board do
     infected_city_colour = Cities.city_colour(infected_city)
     infected_city_count = city_infection_count(board, infected_city, infected_city_colour)
 
-
     if ((infected_city_count + quantity) < 4) do
       board
-      |> add_cube_to_city(infected_city, infected_city_colour, quantity)
+      |> increase_city_disease_count(infected_city, infected_city_colour, quantity)
       |> remove_cubes_from_disease(infected_city_colour, quantity)
     else
       board
-      |> add_cube_to_city(infected_city, infected_city_colour, quantity)
+      |> increase_city_disease_count(infected_city, infected_city_colour, quantity)
       |> remove_cubes_from_disease(infected_city_colour, 3 - infected_city_count)
       |> trigger_outbreak(infected_city, [infected_city], infected_city_colour)
     end
@@ -180,7 +190,7 @@ defmodule PandemicModel.Board do
         infect_outbreak(board, tail ++ new_infections, existing_infections ++ new_infections, infection_colour)
       _ ->
         board
-          |> add_cube_to_city(infected_city, infection_colour, 1)
+          |> increase_city_disease_count(infected_city, infection_colour, 1)
           |> remove_cubes_from_disease(infection_colour, 1)
           |> infect_outbreak(tail, existing_infections, infection_colour)
     end
@@ -201,11 +211,11 @@ defmodule PandemicModel.Board do
 
     if epidemic_city_disease_count == 0 do
       board
-      |> add_cube_to_city(epidemic_city, epidemic_colour, 3)
+      |> increase_city_disease_count(epidemic_city, epidemic_colour, 3)
       |> remove_cubes_from_disease(epidemic_colour, 3)
     else
       board
-      |> add_cube_to_city(epidemic_city, epidemic_colour, max(3 - epidemic_city_disease_count, 0) )
+      |> increase_city_disease_count(epidemic_city, epidemic_colour, max(3 - epidemic_city_disease_count, 0) )
       |> remove_cubes_from_disease(epidemic_colour, max(3 - epidemic_city_disease_count, 0))
       |> trigger_outbreak(epidemic_city, [epidemic_city], epidemic_colour)
     end
