@@ -34,25 +34,6 @@ defmodule PandemicModel.Board.Test do
     assert (24 * 4 - 18) == b.disease_state |> Map.values |> Enum.map(&Map.get(&1, :unused_cubes)) |> Enum.sum
   end
 
-  test "Check the add_cube_to_city function" do
-    b = Board.new()
-      |> Board.add_cube_to_city(:london, :blue, 1)
-
-    assert 1 == Board.city_infection_count(b, :london, :blue)
-
-    b = Board.add_cube_to_city(b, :london, :blue, 1)
-    assert 2 == Board.city_infection_count(b, :london, :blue)
-
-    b = Board.add_cube_to_city(b, :london, :blue, 1)
-    assert 3 == Board.city_infection_count(b, :london, :blue)
-
-    b = Board.add_cube_to_city(b, :london, :blue, 1)
-    assert 3 == Board.city_infection_count(b, :london, :blue)
-
-    b = Board.add_cube_to_city(b, :london, :red, 3)
-    assert 3 == Board.city_infection_count(b, :london, :red)
-  end
-
   test "move to discard pile" do
     b = Board.new()
 

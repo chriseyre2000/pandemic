@@ -124,7 +124,7 @@ defmodule PandemicModel.Board do
     %__MODULE__{ board | disease_state: state  }
   end
 
-  def add_cube_to_city(board, city, colour, quantity) do
+  defp add_cube_to_city(board, city, colour, quantity) do
     infected_city_counts = board.cities_with_disease[city]
     infected_city_counts = Map.update(infected_city_counts, colour, 0, &( min( &1 + quantity, 3)))
     %__MODULE__{board | cities_with_disease: Map.put(board.cities_with_disease, city, infected_city_counts)}
