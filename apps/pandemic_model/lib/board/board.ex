@@ -9,7 +9,7 @@ defmodule PandemicModel.Board do
   @doc """
   Creates a new board.
 
-  The board has not yet had the initial infection cards dealt
+  The board has not yet had the initial infection cards dealt.
   """
   def new() do
     zero_disease_count = Disease.diseases |>  Map.new(fn i -> {i, 0} end)
@@ -35,7 +35,6 @@ defmodule PandemicModel.Board do
   def research_station?(board, city) do
     city in board.research_stations
   end
-
 
   @spec may_add_research_station?(__MODULE__) :: boolean
   @doc """
@@ -174,17 +173,19 @@ defmodule PandemicModel.Board do
     infected_city_colour = Cities.city_colour(infected_city)
     infected_city_count = city_infection_count(board, infected_city, infected_city_colour)
 
-    if ((infected_city_count + quantity) < 4) do
-      board
-      |> increase_city_disease_count(infected_city, infected_city_colour, quantity)
-      |> take_disease_cube_from_pool(infected_city_colour, quantity)
-    else
-      board
-      |> increase_city_disease_count(infected_city, infected_city_colour, quantity)
-      |> take_disease_cube_from_pool(infected_city_colour, 3 - infected_city_count)
-      |> trigger_outbreak(infected_city, [infected_city], infected_city_colour)
+    cond do
+      disease_erradicated?(board, infected_city_colour) ->
+        board
+      ((infected_city_count + quantity) < 4) ->
+        board
+        |> increase_city_disease_count(infected_city, infected_city_colour, quantity)
+        |> take_disease_cube_from_pool(infected_city_colour, quantity)
+      true ->
+        board
+        |> increase_city_disease_count(infected_city, infected_city_colour, quantity)
+        |> take_disease_cube_from_pool(infected_city_colour, 3 - infected_city_count)
+        |> trigger_outbreak(infected_city, [infected_city], infected_city_colour)
     end
-
   end
 
   def trigger_outbreak(board, triggering_city, existing_infections, infection_colour) do
@@ -225,16 +226,18 @@ defmodule PandemicModel.Board do
 
     board = %__MODULE__{board | infection_deck: Enum.drop(board.infection_deck, -1)}
 
-
-    if epidemic_city_disease_count == 0 do
-      board
-      |> increase_city_disease_count(epidemic_city, epidemic_colour, 3)
-      |> take_disease_cube_from_pool(epidemic_colour, 3)
-    else
-      board
-      |> increase_city_disease_count(epidemic_city, epidemic_colour, max(3 - epidemic_city_disease_count, 0) )
-      |> take_disease_cube_from_pool(epidemic_colour, max(3 - epidemic_city_disease_count, 0))
-      |> trigger_outbreak(epidemic_city, [epidemic_city], epidemic_colour)
+    cond do
+      disease_erradicated?(board, epidemic_colour) ->
+        board
+      epidemic_city_disease_count == 0 ->
+        board
+        |> increase_city_disease_count(epidemic_city, epidemic_colour, 3)
+        |> take_disease_cube_from_pool(epidemic_colour, 3)
+      true ->
+        board
+        |> increase_city_disease_count(epidemic_city, epidemic_colour, max(3 - epidemic_city_disease_count, 0) )
+        |> take_disease_cube_from_pool(epidemic_colour, max(3 - epidemic_city_disease_count, 0))
+        |> trigger_outbreak(epidemic_city, [epidemic_city], epidemic_colour)
     end
     |> reinfect(epidemic_city)
   end

@@ -1,6 +1,6 @@
 defmodule PandemicModel.Board.Test do
   use ExUnit.Case
-  alias PandemicModel.{Board, Cities, PlayerCard}
+  alias PandemicModel.{Board, Cities, Player, PlayerCard}
 
   test "An empty board has 48 cards in the infection deck" do
     b = Board.new()
@@ -138,7 +138,8 @@ defmodule PandemicModel.Board.Test do
 
       assert Board.disease_active?(board, infected_city.colour)
 
-      assert 3 == Board.city_infection_count(board, infected_city.id, infected_city.colour)
+      assert 3 == board
+        |> Board.city_infection_count(infected_city.id, infected_city.colour)
 
       board = board
         |> Board.cure_disease(hand_with_5_player_cards_that_are(infected_city.colour))
@@ -156,8 +157,58 @@ defmodule PandemicModel.Board.Test do
       assert Board.disease_erradicated?(board, infected_city.colour)
     end
 
+  end
 
+  describe "Eradicated diseases don't add cards" do
+    setup [:won_game]
 
+    test "infect city does nothing", %{won_board: board} do
+      board = board
+        |> Board.infect_cities()
+
+      assert %{} == board
+        |> Board.diseased_cities()
+    end
+
+    test "epidemic does nothing", %{won_board: board} do
+      board = board
+        |> Board.epidemic()
+
+      assert %{} == board
+        |> Board.diseased_cities()
+    end
+  end
+
+  defp won_game(context) do
+    board = Board.new()
+
+    player = Player.new(:researcher, :atlanta)
+
+    player = player
+      |> Player.add_cards( hand_with_5_player_cards_that_are(:red))
+
+    {:ok, player, board} = player
+      |> Player.cure_disease(player.cards, board)
+
+    player = player
+      |> Player.add_cards( hand_with_5_player_cards_that_are(:blue))
+
+    {:ok, player, board} = player
+      |> Player.cure_disease(player.cards, board)
+
+    player = player
+      |> Player.add_cards(hand_with_5_player_cards_that_are(:black))
+
+    {:ok, player, board} = player
+      |> Player.cure_disease(player.cards, board)
+
+    player = player
+      |> Player.add_cards(hand_with_5_player_cards_that_are(:yellow))
+
+    {:ok, _player, board} = player
+      |> Player.cure_disease(player.cards, board)
+
+    {:ok, context |> Map.put(:won_board, board)}
   end
 
   defp simple_board(context) do
