@@ -10,4 +10,4 @@ This is an attempt to model the Pandemic board game as an Elixir domain model.
 
 4. Work on Roles
 
-TODO: We may need a Game module that handles player interactions.
+We now have a game module that handles deal out the cards and roles.
