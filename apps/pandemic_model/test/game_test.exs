@@ -27,5 +27,4 @@ defmodule PandemicModel.Game.Test do
       |> Enum.filter( &( &1.type == :epidemic ))
       |> Enum.count()
   end
-
 end

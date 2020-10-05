@@ -281,7 +281,51 @@ defmodule PandemicModel.Player.Test do
 
     end
 
+    test "Player can play goverment grant if they have the card",
+      %{player: player, board: board, government_grant_card: government_grant_card}
+    do
+      player = player
+        |> Player.add_card(government_grant_card)
 
+      {:ok, player, board} = player
+        |> Player.government_grant(:london, board)
+
+      assert board
+        |> Board.research_station?(:london)
+
+      assert government_grant_card not in player.cards
+
+      assert government_grant_card in board.player_discard_pile
+    end
+
+    test "Player can play airlift card on themself if they have the card",
+      %{player: player, board: board, airlift_card: airlift_card}
+    do
+      player = player
+        |> Player.add_card(airlift_card)
+
+      {:ok, player, board} = player
+        |> Player.airlift_self(:sydney, board)
+
+      assert player.city == :sydney
+      assert airlift_card not in player.cards
+      assert airlift_card in board.player_discard_pile
+    end
+
+    test "Player can play airlift card on another if they have the card",
+      %{player: player, player_two: player_two, board: board, airlift_card: airlift_card}
+    do
+      player = player
+        |> Player.add_card(airlift_card)
+
+      {:ok, player, player_two, board} = player
+        |> Player.airlift_other(player_two, :sydney, board)
+
+      assert player_two.city == :sydney
+      assert player.city == :london
+      assert airlift_card not in player.cards
+      assert airlift_card in board.player_discard_pile
+    end
   end
 
   def player_board(context) do
@@ -290,6 +334,7 @@ defmodule PandemicModel.Player.Test do
       |> Map.put(:player, Player.new(:scientist, :london))
       |> Map.put(:player_two, Player.new(:dispatcher, :london))
       |> Map.put(:government_grant_card, PlayerCard.new_event(:government_grant))
+      |> Map.put(:airlift_card, PlayerCard.new_event(:airlift_card))
       |> Map.put(:london_card, PlayerCard.new_city(:london))
       |> Map.put(:paris_card, PlayerCard.new_city(:paris))
     }
@@ -301,6 +346,4 @@ defmodule PandemicModel.Player.Test do
       |> Enum.take(n)
       |> Enum.map(&(PlayerCard.new_city(&1.id)))
   end
-
-
 end

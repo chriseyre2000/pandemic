@@ -105,4 +105,44 @@ defmodule PandemicModel.Player do
     end
   end
 
+  # PlayerCard.new_event(:quiet_night),
+  # PlayerCard.new_event(:forecast),
+  # PlayerCard.new_event(:resiliant_population),
+
+  def government_grant(%Player{cards: cards} = player, city, board) do
+    government_grant_card = cards |> Enum.find(&(&1.action == :government_grant))
+    cond do
+       government_grant_card == nil -> {:error, "You don't have the government grant card" }
+       false == board |> Board.may_add_research_station?() -> {:error, "There are already 6 research stations"}
+       board |> Board.research_station?(city) -> {:error, "There is already a research station there"}
+       true ->
+         board = board
+           |> Board.add_to_player_discard_pile(government_grant_card)
+           |> Board.add_research_station(city)
+
+        {:ok, %{player | cards: player.cards -- [government_grant_card] }, board }
+    end
+  end
+
+  def airlift_self(%Player{cards: cards} = player, city, board) do
+    airlift_card = cards |> Enum.find(&(&1.action == :airlift_card))
+
+    cond do
+      airlift_card == nil -> {:error, "You don't have the airlift card"}
+      player.city == city -> {:error, "You are already in #{Cities.city_name(city)}"}
+      true -> {:ok, %{player | city: city, cards: cards -- [airlift_card]}, board |> Board.add_to_player_discard_pile(airlift_card)}
+    end
+  end
+
+  def airlift_other(%Player{cards: cards}=player, %Player{}=travelling_player, city, board) when player != travelling_player  do
+    airlift_card = cards |> Enum.find(&(&1.action == :airlift_card))
+
+    cond do
+      airlift_card == nil -> {:error, "You don't have the airlift card"}
+      travelling_player.city == city -> {:error, "#{travelling_player.role} is already in #{Cities.city_name(city)}"}
+      true -> {:ok, %{player | cards: cards -- [airlift_card]}, %{travelling_player | city: city},  board |> Board.add_to_player_discard_pile(airlift_card)}
+    end
+  end
+
+
 end
