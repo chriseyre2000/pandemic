@@ -70,23 +70,18 @@ defmodule PandemicModel.Board do
     board.disease_state[disease_colour].state == :erradicated
   end
 
-  def get_remaining_cubes_for_disease(board, colour) do
-    board.disease_state[colour].unused_cubes
-  end
-
-  #This ignores the superbug challenge for now
-  def won?(board) do
-    board.disease_state |> Map.values |> Enum.all?( &(&1.state not in [:active]))
-  end
-
-  def lost?(model) do
-    model.outbreaks == 8 or model.infection_deck == [] or Enum.any?( model.disease_state, &(&1  < 0) ) # or player_deck is empty
-  end
-
+  @spec city_infection_count(__MODULE__, city :: atom, colour :: atom) :: non_neg_integer()
+  @doc """
+  Returns the infection count for the disease colour in a given city
+  """
   def city_infection_count(board, city, colour) do
     board.cities_with_disease[city][colour]
   end
 
+  @spec diseased_cities( __MODULE__ ) :: map
+  @doc """
+  Provides a map of only the cities that have at least one infection count
+  """
   def diseased_cities(board) do
     :maps.filter(fn _,v -> Map.values(v) |> Enum.sum() > 0 end, board.cities_with_disease)
   end

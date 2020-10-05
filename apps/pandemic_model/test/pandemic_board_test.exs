@@ -17,14 +17,6 @@ defmodule PandemicModel.Board.Test do
     assert b.disease_state[:red].unused_cubes == 24
   end
 
-  test "An empty board has not won" do
-    refute Board.new() |> Board.won?
-  end
-
-  test "An empty board has not lost" do
-    refute Board.new() |> Board.lost?
-  end
-
   test "State of board at start of game" do
     b = Board.new()
       |> Board.setup_board()
@@ -74,11 +66,6 @@ defmodule PandemicModel.Board.Test do
     test "Diseases are not erradicated by default", %{board: board} do
       refute board
         |> Board.disease_erradicated?(:blue)
-    end
-
-    test "There are 24 counters per disease at the start of the game" do
-      assert 24 == Board.new()
-        |> Board.get_remaining_cubes_for_disease(:blue)
     end
 
     test "The top city in the infection discard pile has 1 disease", %{board: board, infected_city: infected_city} do
