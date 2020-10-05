@@ -64,7 +64,7 @@ defmodule PandemicModel.Player do
 
   def build_a_research_station(%__MODULE__{} = player, %Board{} = board) do
     cond do
-      Board.count_research_stations(board) == 6 -> {:error, "We already have 6 reasearch stations, can't build more"}
+      not Board.may_add_research_station?(board) -> {:error, "We already have 6 reasearch stations, can't build more"}
       Board.research_station?(board, player.city) -> {:error, "There is already a research station at #{ Cities.city_name(player.city)}"}
       true -> {:ok, player, Board.add_research_station(board, player.city)}
     end

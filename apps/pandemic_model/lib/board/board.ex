@@ -37,8 +37,8 @@ defmodule PandemicModel.Board do
     city in board.research_stations
   end
 
-  def count_research_stations(board) do
-    Enum.count(board.research_stations)
+  def may_add_research_station?(board) do
+    Enum.count(board.research_stations) < 6
   end
 
   def current_infection_rate(board) do

@@ -51,12 +51,14 @@ defmodule PandemicModel.Board.Test do
       assert Board.research_station?(board, :atlanta)
     end
 
-    test "Atlanta is the only research station", %{board: board} do
-      assert 1 == board |> Board.count_research_stations()
+    test "May add a research station if Atlanta is the only research station", %{board: board} do
+      assert board
+        |> Board.may_add_research_station?()
     end
 
     test "London is not a research station", %{board: board} do
-      refute Board.research_station?(board, :london)
+      refute board
+        |> Board.research_station?(:london)
     end
 
     test "Can make london a research station", %{board: board} do
@@ -64,19 +66,14 @@ defmodule PandemicModel.Board.Test do
         |> Board.add_research_station(:london)
         |> Board.research_station?(:london)
     end
-
-    test "Adding a research station to London makes 2 stations", %{board: board} do
-      assert 2 == board
-        |> Board.add_research_station(:london)
-        |> Board.count_research_stations()
-    end
   end
 
   describe "Disease Board Tests" do
     setup [:simple_board]
 
     test "Diseases are not erradicated by default", %{board: board} do
-      refute board |> Board.disease_erradicated?(:blue)
+      refute board
+        |> Board.disease_erradicated?(:blue)
     end
 
     test "There are 24 counters per disease at the start of the game" do
@@ -85,7 +82,8 @@ defmodule PandemicModel.Board.Test do
     end
 
     test "The top city in the infection discard pile has 1 disease", %{board: board, infected_city: infected_city} do
-      assert 1 == board |> Board.city_infection_count(infected_city.id, infected_city.colour)
+      assert 1 == board
+        |> Board.city_infection_count(infected_city.id, infected_city.colour)
     end
 
     test "Treating the disease reduces the count", %{board: board, infected_city: infected_city} do
@@ -96,8 +94,8 @@ defmodule PandemicModel.Board.Test do
 
     test "Curing the disease does not change the count", %{board: board, infected_city: infected_city} do
       assert 1 == board
-      |> Board.cure_disease(hand_with_5_player_cards_that_are(infected_city.colour))
-      |> Board.city_infection_count(infected_city.id, infected_city.colour)
+        |> Board.cure_disease(hand_with_5_player_cards_that_are(infected_city.colour))
+        |> Board.city_infection_count(infected_city.id, infected_city.colour)
     end
 
     test "Curing the disease changed the state from active to cured if there are disease counters left", %{board: board, infected_city: infected_city} do
