@@ -2,8 +2,20 @@ defmodule PandemicModel.Board do
   require Logger
 
   alias PandemicModel.{Cities, Disease, PlayerCard}
-  defstruct ~w[infection_deck infection_discard_pile outbreaks infection_rate disease_state cities_with_disease research_stations player_deck player_discard_pile]a
 
+  @type t :: %__MODULE__{
+    infection_deck: [atom],
+    infection_discard_pile: [atom],
+    outbreaks: non_neg_integer(),
+    infection_rate: [non_neg_integer()],
+    disease_state: map,
+    cities_with_disease: map,
+    research_stations: [atom],
+    player_deck: [PlayerCard],
+    player_discard_pile: [PlayerCard],
+  }
+
+  defstruct ~w[infection_deck infection_discard_pile outbreaks infection_rate disease_state cities_with_disease research_stations player_deck player_discard_pile]a
 
   @spec new :: __MODULE__
   @doc """
@@ -70,7 +82,7 @@ defmodule PandemicModel.Board do
     board.disease_state[disease_colour].state == :erradicated
   end
 
-  @spec city_infection_count(__MODULE__, city :: atom, colour :: atom) :: non_neg_integer()
+  @spec city_infection_count(__MODULE__.t(), city :: atom, colour :: atom) :: non_neg_integer()
   @doc """
   Returns the infection count for the disease colour in a given city
   """
@@ -78,7 +90,7 @@ defmodule PandemicModel.Board do
     board.cities_with_disease[city][colour]
   end
 
-  @spec diseased_cities( __MODULE__ ) :: map
+  @spec diseased_cities( __MODULE__.t() ) :: map
   @doc """
   Provides a map of only the cities that have at least one infection count
   """
@@ -88,10 +100,26 @@ defmodule PandemicModel.Board do
 
   ### Command API ###
 
-  def add_research_station(board, city) do
-    %{board | research_stations: [city | board.research_stations]}
+  @spec add_research_station(__MODULE__.t(), city :: atom) :: __MODULE__
+  @doc """
+  Adds a research station for the supplied city.
+
+  Is idempotent since you can only one research station
+
+  It will ignore attempts to add research stations once the limit has been reached.
+  """
+  def add_research_station(%__MODULE__{research_stations: existing_stations} = board, city) do
+    cond do
+      city in existing_stations -> board
+      not may_add_research_station?(board) -> board
+      true -> %{board | research_stations: [city | existing_stations]}
+    end
   end
 
+  @spec cure_disease(PandemicModel.Board.t(), [PlayerCard]) :: PandemicModel.Board.t()
+  @doc """
+  Cures the disease with the supplied list of cards
+  """
   def cure_disease(board, cards) do
     disease_colour = cards
       |> hd()
@@ -106,6 +134,10 @@ defmodule PandemicModel.Board do
     %{board | player_discard_pile: cards ++ board.player_discard_pile}
   end
 
+  @spec increment_outbreak(__MODULE__.t()) :: __MODULE__.t()
+  @doc """
+  Records the number of outbreaks that have happened
+  """
   def increment_outbreak(board) do
     %{board | outbreaks: board.outbreaks + 1}
   end
@@ -115,13 +147,15 @@ defmodule PandemicModel.Board do
     %{ board | disease_state: state  }
   end
 
+  @spec treat_disease(__MODULE__.t(), city :: atom, colour :: atom) :: __MODULE__.t()
   def treat_disease(%__MODULE__{} = board, city, colour) do
     disease_count = city_infection_count(board, city, colour)
-    to_remove = if disease_active?(board, colour) do
-      1
-    else
-      disease_count
-    end
+    to_remove =
+      if disease_active?(board, colour) do
+        1
+      else
+        disease_count
+      end
 
     board
       |> return_disease_cube_to_pool(colour, to_remove)
@@ -158,13 +192,14 @@ defmodule PandemicModel.Board do
     %__MODULE__{board | cities_with_disease: Map.put(board.cities_with_disease, city, infected_city_counts)}
   end
 
-  def move_top_card_to_discard_pile(board) do
+  defp move_top_card_to_discard_pile(board) do
     %{board | infection_deck: tl(board.infection_deck ), infection_discard_pile: Enum.concat([ hd(board.infection_deck)], board.infection_discard_pile )}
   end
 
   defp infect(%__MODULE__{} = board, quantity \\ 1) when quantity in [1,2,3] do
     infected_city  = hd(board.infection_deck)
-    board = move_top_card_to_discard_pile(board)
+    board = board
+      |>  move_top_card_to_discard_pile()
     infected_city_colour = Cities.city_colour(infected_city)
     infected_city_count = city_infection_count(board, infected_city, infected_city_colour)
 
@@ -183,7 +218,7 @@ defmodule PandemicModel.Board do
     end
   end
 
-  def trigger_outbreak(board, triggering_city, existing_infections, infection_colour) do
+  defp trigger_outbreak(board, triggering_city, existing_infections, infection_colour) do
     board = board |> increment_outbreak()
     cities_to_infect = Cities.find_by(triggering_city).links -- existing_infections
     existing_infections = cities_to_infect ++ existing_infections
@@ -245,6 +280,11 @@ defmodule PandemicModel.Board do
     %__MODULE__{board | infection_deck: new_infection_deck , infection_discard_pile: []}
   end
 
+  @spec infect_cities(__MODULE__.t()) :: __MODULE__.t()
+  @doc """
+  This is the event at the end of the players turn during which a certain number of cities are infected.
+  This can trigger further outbreaks.
+  """
   def infect_cities(board) do
     additional_infect(board, current_infection_rate(board))
   end
@@ -259,6 +299,10 @@ defmodule PandemicModel.Board do
       |> additional_infect(remaining_times - 1)
   end
 
+  @spec setup_board(__MODULE__.t()) :: __MODULE__.t()
+  @doc """
+  This places the initial disease counters on the board.
+  """
   def setup_board(board) do
     board
       |> infect(3)
@@ -272,7 +316,8 @@ defmodule PandemicModel.Board do
       |> infect(1)
   end
 
-  def add_player_deck(board) do
+  @spec add_player_deck(PandemicModel.Board.t()) :: PandemicModel.Board.t()
+  def add_player_deck(%__MODULE__{} = board) do
     all_city_cards = Cities.all_cities
       |> Enum.map(&(PlayerCard.new_city(&1.id)))
 
@@ -284,15 +329,6 @@ defmodule PandemicModel.Board do
       PlayerCard.new_event(:resiliant_population),
     ]
 
-    %{board | player_deck: all_city_cards ++ event_cards |> Enum.shuffle()}
+    %{board | player_deck: all_city_cards ++ event_cards |> Enum.shuffle(), player_discard_pile: []}
   end
-
-  def deal_a_card(%__MODULE__{ player_deck: [card | remainder] } = board) do
-    {:ok, %{board | player_deck: remainder}, card}
-  end
-
-  def deal_a_card(_board) do
-    {:error, "You lose as there are no cards left to deal"}
-  end
-
 end

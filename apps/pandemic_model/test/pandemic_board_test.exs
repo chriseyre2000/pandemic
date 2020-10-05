@@ -26,14 +26,17 @@ defmodule PandemicModel.Board.Test do
     assert (24 * 4 - 18) == b.disease_state |> Map.values |> Enum.map(&Map.get(&1, :unused_cubes)) |> Enum.sum
   end
 
-  test "move to discard pile" do
-    b = Board.new()
+  test "infect_cities moves the top two cards to discard pile" do
+    board = Board.new()
 
-    card_to_move = hd(b.infection_deck)
+    [first_card, second_card | _tail]  = board.infection_deck
 
-    b = Board.move_top_card_to_discard_pile(b)
-    assert card_to_move != hd(b.infection_deck)
-    assert card_to_move == hd(b.infection_discard_pile)
+    board = board
+      |> Board.infect_cities()
+
+    refute first_card in  board.infection_deck
+    refute second_card in  board.infection_deck
+    assert [^second_card, ^first_card] =  board.infection_discard_pile
   end
 
   describe "Research Station Tests" do
@@ -58,6 +61,25 @@ defmodule PandemicModel.Board.Test do
         |> Board.add_research_station(:london)
         |> Board.research_station?(:london)
     end
+
+    test "Will ignore a duplicate addition of a research station", %{board: board} do
+      assert board
+        |> Board.add_research_station(:london)
+        |> Board.add_research_station(:london)
+        |> Board.research_station?(:london)
+    end
+
+    test "Will ignore a the addition of a research station beyond the sixth", %{board: board} do
+      refute board
+        |> Board.add_research_station(:london)
+        |> Board.add_research_station(:paris)
+        |> Board.add_research_station(:lima)
+        |> Board.add_research_station(:milan)
+        |> Board.add_research_station(:tokyo)
+        |> Board.add_research_station(:new_york)
+        |> Board.research_station?(:new_york)
+    end
+
   end
 
   describe "Disease Board Tests" do
