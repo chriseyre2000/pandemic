@@ -326,6 +326,43 @@ defmodule PandemicModel.Player.Test do
       assert airlift_card not in player.cards
       assert airlift_card in board.player_discard_pile
     end
+
+    test "Player can play quiet night", %{player: player, board: board, quiet_night: quiet_night} do
+      player = player
+        |> Player.add_card(quiet_night)
+
+      {:ok, player, board} = player
+        |> Player.quiet_night(board)
+
+      assert quiet_night not in player.cards
+      assert quiet_night in board.player_discard_pile
+      assert board.quiet_night
+
+      board = board
+        |> Board.infect_cities()
+
+      assert %{} == board |> Board.diseased_cities()
+
+      refute board.quiet_night
+    end
+
+    test "Player can play resilant population", %{player: player, board: board, resiliant_population: resiliant_population} do
+      player = player
+        |> Player.add_card(resiliant_population)
+
+      board = board
+        |> Board.infect_cities()
+
+      city = board.infection_discard_pile |> hd()
+
+      {:ok, player, board} = player
+        |> Player.resiliant_poplulation(city, board)
+
+      assert resiliant_population not in player.cards
+      assert resiliant_population in board.player_discard_pile
+      refute city in board.infection_discard_pile
+      refute city in board.infection_deck
+    end
   end
 
   def player_board(context) do
@@ -334,9 +371,11 @@ defmodule PandemicModel.Player.Test do
       |> Map.put(:player, Player.new(:scientist, :london))
       |> Map.put(:player_two, Player.new(:dispatcher, :london))
       |> Map.put(:government_grant_card, PlayerCard.new_event(:government_grant))
+      |> Map.put(:quiet_night, PlayerCard.new_event(:quiet_night))
       |> Map.put(:airlift_card, PlayerCard.new_event(:airlift_card))
       |> Map.put(:london_card, PlayerCard.new_city(:london))
       |> Map.put(:paris_card, PlayerCard.new_city(:paris))
+      |> Map.put(:resiliant_population, PlayerCard.new_event(:resiliant_population))
     }
   end
 

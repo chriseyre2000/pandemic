@@ -105,9 +105,7 @@ defmodule PandemicModel.Player do
     end
   end
 
-  # PlayerCard.new_event(:quiet_night),
   # PlayerCard.new_event(:forecast),
-  # PlayerCard.new_event(:resiliant_population),
 
   def government_grant(%Player{cards: cards} = player, city, board) do
     government_grant_card = cards |> Enum.find(&(&1.action == :government_grant))
@@ -140,7 +138,32 @@ defmodule PandemicModel.Player do
     cond do
       airlift_card == nil -> {:error, "You don't have the airlift card"}
       travelling_player.city == city -> {:error, "#{travelling_player.role} is already in #{Cities.city_name(city)}"}
-      true -> {:ok, %{player | cards: cards -- [airlift_card]}, %{travelling_player | city: city},  board |> Board.add_to_player_discard_pile(airlift_card)}
+      true -> {:ok, %{player | cards: cards -- [airlift_card]},
+                    %{travelling_player | city: city},
+                    board |> Board.add_to_player_discard_pile(airlift_card)}
+    end
+  end
+
+  def quiet_night(%Player{cards: cards}=player, board) do
+    quiet_night_card = cards |> Enum.find(&(&1.action == :quiet_night))
+
+    cond do
+      quiet_night_card == nil -> {:error, "You don't have the quiet night card"}
+      true -> {:ok, %{player | cards: cards -- [quiet_night_card]},
+                      board |> Board.add_to_player_discard_pile(quiet_night_card)
+                            |> Board.enable_quiet_night()}
+    end
+  end
+
+  def resiliant_poplulation(%Player{cards: cards}=player, city, board) do
+    resiliant_population_card = cards |> Enum.find(&(&1.action == :resiliant_population))
+
+    cond do
+      resiliant_population_card == nil -> {:error, "You don't have the resiliant population card"}
+      city not in board.infection_discard_pile -> {:error, "#{Cities.city_name(city)} is not in the infection discard pile"}
+      true -> {:ok, %{player | cards: cards -- [resiliant_population_card]},
+                      board |> Board.add_to_player_discard_pile(resiliant_population_card)
+                            |> Board.remove_from_infection_discard_pile(city)}
     end
   end
 

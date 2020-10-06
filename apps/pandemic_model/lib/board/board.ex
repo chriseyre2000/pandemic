@@ -12,9 +12,10 @@ defmodule PandemicModel.Board do
     research_stations: [atom],
     player_deck: [PlayerCard],
     player_discard_pile: [PlayerCard],
+    quiet_night: bool
   }
 
-  defstruct ~w[infection_deck infection_discard_pile outbreaks infection_rate disease_state cities_with_disease research_stations player_deck player_discard_pile]a
+  defstruct ~w[infection_deck infection_discard_pile outbreaks infection_rate disease_state cities_with_disease research_stations player_deck player_discard_pile quiet_night]a
 
   @spec new :: __MODULE__
   @doc """
@@ -23,7 +24,7 @@ defmodule PandemicModel.Board do
   The board has not yet had the initial infection cards dealt.
   """
   def new() do
-    zero_disease_count = Disease.diseases |>  Map.new(fn i -> {i, 0} end)
+    zero_disease_count = Disease.diseases |>  Map.new(&{&1, 0})
 
     %__MODULE__{
       infection_deck: Cities.all_keys() |> Enum.shuffle(),
@@ -34,7 +35,8 @@ defmodule PandemicModel.Board do
       cities_with_disease: Cities.all_keys() |> Map.new(fn i -> {i, zero_disease_count} end),
       research_stations: [:atlanta],
       player_deck: [],
-      player_discard_pile: []
+      player_discard_pile: [],
+      quiet_night: false
     }
   end
 
@@ -144,6 +146,15 @@ defmodule PandemicModel.Board do
   """
   def increment_outbreak(board) do
     %{board | outbreaks: board.outbreaks + 1}
+  end
+
+  @spec enable_quiet_night(PandemicModel.Board.t()) :: PandemicModel.Board.t()
+  def enable_quiet_night(%__MODULE__{}=board) do
+    %{board | quiet_night: true}
+  end
+
+  defp disable_quiet_night(board) do
+    %{board | quiet_night: false}
   end
 
   defp record_disease_cured(%__MODULE__{disease_state: state } = board, colour) do
@@ -290,7 +301,12 @@ defmodule PandemicModel.Board do
   This can trigger further outbreaks.
   """
   def infect_cities(board) do
-    additional_infect(board, current_infection_rate(board))
+    if board.quiet_night do
+      board
+        |> disable_quiet_night()
+    else
+      additional_infect(board, current_infection_rate(board))
+    end
   end
 
   defp additional_infect(board, 0) do
@@ -334,5 +350,9 @@ defmodule PandemicModel.Board do
     ]
 
     %{board | player_deck: all_city_cards ++ event_cards |> Enum.shuffle(), player_discard_pile: []}
+  end
+
+  def remove_from_infection_discard_pile(%__MODULE__{}=board, city) do
+    %{board | infection_discard_pile: board.infection_discard_pile -- [city]}
   end
 end
