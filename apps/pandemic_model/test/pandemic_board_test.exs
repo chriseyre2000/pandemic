@@ -9,7 +9,7 @@ defmodule PandemicModel.Board.Test do
 
   test "An empty board has 0 cards in the infection disguard pile" do
     b = Board.new()
-    assert 0 == Enum.count(b.infection_discard_pile)
+    assert Enum.empty?(b.infection_discard_pile)
   end
 
   test "An empty board has 24 red disease cubes" do
@@ -116,7 +116,8 @@ defmodule PandemicModel.Board.Test do
     test "Curing a disease with no counters left erradicates it" do
       board = Board.new()
         |> Board.epidemic()
-      infected_city = hd(board.infection_deck)
+      infected_city = board.infection_deck
+        |> hd()
         |> Cities.find_by()
 
       assert Board.disease_active?(board, infected_city.colour)
@@ -142,7 +143,8 @@ defmodule PandemicModel.Board.Test do
     test "Removing the last counters of a cured disease erradicates it" do
       board = Board.new()
         |> Board.epidemic()
-      infected_city = hd(board.infection_deck)
+      infected_city = board.infection_deck
+        |> hd()
         |> Cities.find_by()
 
       assert Board.disease_active?(board, infected_city.colour)
@@ -194,13 +196,13 @@ defmodule PandemicModel.Board.Test do
     player = Player.new(:researcher, :atlanta)
 
     player = player
-      |> Player.add_cards( hand_with_5_player_cards_that_are(:red))
+      |> Player.add_cards(hand_with_5_player_cards_that_are(:red))
 
     {:ok, player, board} = player
       |> Player.cure_disease(player.cards, board)
 
     player = player
-      |> Player.add_cards( hand_with_5_player_cards_that_are(:blue))
+      |> Player.add_cards(hand_with_5_player_cards_that_are(:blue))
 
     {:ok, player, board} = player
       |> Player.cure_disease(player.cards, board)
@@ -222,7 +224,9 @@ defmodule PandemicModel.Board.Test do
 
   defp simple_board(context) do
     board = Board.new() |> Board.setup_board()
-    infected_city = hd(board.infection_discard_pile) |> Cities.find_by()
+    infected_city = board.infection_discard_pile
+      |> hd()
+      |> Cities.find_by()
     {:ok, context |> Map.put(:board, board) |> Map.put(:infected_city, infected_city) }
   end
 

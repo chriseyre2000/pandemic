@@ -1,10 +1,14 @@
 defmodule PandemicModel.Player do
-  alias PandemicModel.{Board, Cities, PlayerCard, Player}
+@moduledoc """
+This holds the structure and behaviour of the Player.
+"""
+  alias PandemicModel.{Board, Cities, Player, PlayerCard}
   @player_keys ~w[role city cards]a
 
   @enforce_keys @player_keys
   defstruct @player_keys
 
+  @spec new(atom(), atom(), [atom()]) :: PandemicModel.Player
   def new(role, city \\ :atlanta, cards \\ []) do
     %__MODULE__{role: role, city: city, cards: cards}
   end
@@ -71,9 +75,10 @@ defmodule PandemicModel.Player do
   end
 
   def treat_disease(%__MODULE__{} = player, colour, board) do
-    cond do
-      Board.city_infection_count(board, player.city, colour) == 0 -> {:error, "No disease to cure here"}
-      true -> {:ok, player, Board.treat_disease(board, player.city, colour)}
+    if Board.city_infection_count(board, player.city, colour) == 0 do
+      {:error, "No disease to cure here"}
+    else
+      {:ok, player, Board.treat_disease(board, player.city, colour)}
     end
   end
 
@@ -83,18 +88,18 @@ defmodule PandemicModel.Player do
       player.city != city -> {:error, "You need to be in the same city as the card to share knowledge"}
       card in player.cards -> {:ok,
                                 %{player | cards: player.cards -- [card]},
-                                %{ other_player | cards: other_player.cards ++ [card] },
+                                %{other_player | cards: other_player.cards ++ [card]},
                                 board}
-      card in other_player.cards -> {:ok, %{player | cards: player.cards ++ [card] }, %{ other_player | cards: other_player.cards -- [card] }, board}
+      card in other_player.cards -> {:ok, %{player | cards: player.cards ++ [card] }, %{other_player | cards: other_player.cards -- [card]}, board}
       true -> {:error, "Neither of you had the card for #{Cities.city_name(city)}"}
     end
   end
 
-  def share_knowledge(%__MODULE__{} =_player, %__MODULE__{} = _otherPlayer, %PlayerCard{:type => type}, _board) do
+  def share_knowledge(%__MODULE__{} = _player, %__MODULE__{} = _otherPlayer, %PlayerCard{:type => type}, _board) do
     {:error, "That's a #{type} card, you need a city card to share knowledge."}
   end
 
-  def cure_disease(%Player{}=player, cards, %Board{} = board) do
+  def cure_disease(%Player{} = player, cards, %Board{} = board) do
     cond do
       Enum.count(cards) != 5 -> {:error, "You need 5 cards and only supplied #{Enum.count(cards)}"}
       cards |> Enum.any?(&(&1.type != :city)) -> {:error, "All the cards need to be city cards"}
@@ -128,11 +133,13 @@ defmodule PandemicModel.Player do
     cond do
       airlift_card == nil -> {:error, "You don't have the airlift card"}
       player.city == city -> {:error, "You are already in #{Cities.city_name(city)}"}
-      true -> {:ok, %{player | city: city, cards: cards -- [airlift_card]}, board |> Board.add_to_player_discard_pile(airlift_card)}
+      true -> {:ok,
+               %{player | city: city, cards: cards -- [airlift_card]},
+               board |> Board.add_to_player_discard_pile(airlift_card)}
     end
   end
 
-  def airlift_other(%Player{cards: cards}=player, %Player{}=travelling_player, city, board) when player != travelling_player  do
+  def airlift_other(%Player{cards: cards} = player, %Player{} = travelling_player, city, board) when player != travelling_player  do
     airlift_card = cards |> Enum.find(&(&1.action == :airlift_card))
 
     cond do
@@ -144,18 +151,22 @@ defmodule PandemicModel.Player do
     end
   end
 
-  def quiet_night(%Player{cards: cards}=player, board) do
+  def quiet_night(%Player{cards: cards} = player, board) do
     quiet_night_card = cards |> Enum.find(&(&1.action == :quiet_night))
 
-    cond do
-      quiet_night_card == nil -> {:error, "You don't have the quiet night card"}
-      true -> {:ok, %{player | cards: cards -- [quiet_night_card]},
-                      board |> Board.add_to_player_discard_pile(quiet_night_card)
-                            |> Board.enable_quiet_night()}
+    if quiet_night_card == nil do
+       {:error, "You don't have the quiet night card"}
+    else
+       {:ok,
+             %{player | cards: cards -- [quiet_night_card]},
+             board
+               |> Board.add_to_player_discard_pile(quiet_night_card)
+               |> Board.enable_quiet_night()
+       }
     end
   end
 
-  def resiliant_poplulation(%Player{cards: cards}=player, city, board) do
+  def resiliant_poplulation(%Player{cards: cards} = player, city, board) do
     resiliant_population_card = cards |> Enum.find(&(&1.action == :resiliant_population))
 
     cond do
@@ -166,6 +177,4 @@ defmodule PandemicModel.Player do
                             |> Board.remove_from_infection_discard_pile(city)}
     end
   end
-
-
 end

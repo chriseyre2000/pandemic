@@ -1,6 +1,10 @@
 defmodule PandemicModel.Cities do
+  @moduledoc """
+  This module defines the available cities, the colour of disease that it is associated with and
+  the links to other cities.
+  """
   alias PandemicModel.City
-  def all_cities() do
+  def all_cities do
     [
       City.new(:algiers, "Algiers", :black, [:cairo, :istanbul, :paris, :madrid]),
       City.new(:atlanta, "Atlanta", :blue, [:chicago, :miami, :washington]),
@@ -52,15 +56,15 @@ defmodule PandemicModel.Cities do
       City.new(:washington, "Washington", :blue, [:atlanta, :montreal, :new_york, :miami]),
     ]
   end
-  
-  def find_by(id) do 
-    all_cities() |> Enum.find(&( &1.id == id ))
+
+  def find_by(id) do
+    all_cities() |> Enum.find(&(&1.id == id))
   end
-  
-  def all_keys() do
-    all_cities() |> Enum.map(&Map.get(&1, :id)) 
+
+  def all_keys do
+    all_cities() |> Enum.map(&Map.get(&1, :id))
   end
-  
+
   def city_colour(id) do
     find_by(id).colour
   end
@@ -72,4 +76,4 @@ defmodule PandemicModel.Cities do
   def city_name(id) do
     find_by(id).name
   end
-end  
+end

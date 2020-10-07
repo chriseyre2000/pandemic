@@ -1,5 +1,7 @@
 defmodule PandemicModel.Board do
-
+  @moduledoc """
+  Defines the board and interactions with the game.
+  """
   alias PandemicModel.{Cities, Disease, PlayerCard}
 
   @type t :: %__MODULE__{
@@ -15,7 +17,10 @@ defmodule PandemicModel.Board do
     quiet_night: bool
   }
 
-  defstruct ~w[infection_deck infection_discard_pile outbreaks infection_rate disease_state cities_with_disease research_stations player_deck player_discard_pile quiet_night]a
+  defstruct ~w[infection_deck infection_discard_pile outbreaks
+               infection_rate disease_state cities_with_disease
+               research_stations player_deck player_discard_pile
+               quiet_night]a
 
   @spec new :: __MODULE__
   @doc """
@@ -23,7 +28,7 @@ defmodule PandemicModel.Board do
 
   The board has not yet had the initial infection cards dealt.
   """
-  def new() do
+  def new do
     zero_disease_count = Disease.diseases |>  Map.new(&{&1, 0})
 
     %__MODULE__{
@@ -91,12 +96,12 @@ defmodule PandemicModel.Board do
     board.cities_with_disease[city][colour]
   end
 
-  @spec diseased_cities( __MODULE__.t() ) :: map
+  @spec diseased_cities(__MODULE__.t()) :: map
   @doc """
   Provides a map of only the cities that have at least one infection count
   """
   def diseased_cities(board) do
-    :maps.filter(fn _,v -> Map.values(v) |> Enum.sum() > 0 end, board.cities_with_disease)
+    :maps.filter(fn _, v -> v |> Map.values() |> Enum.sum() > 0 end, board.cities_with_disease)
   end
 
   ### Command API ###
@@ -139,7 +144,6 @@ defmodule PandemicModel.Board do
     %{board | player_discard_pile: [card] ++ board.player_discard_pile}
   end
 
-
   @spec increment_outbreak(__MODULE__.t()) :: __MODULE__.t()
   @doc """
   Records the number of outbreaks that have happened
@@ -149,7 +153,7 @@ defmodule PandemicModel.Board do
   end
 
   @spec enable_quiet_night(PandemicModel.Board.t()) :: PandemicModel.Board.t()
-  def enable_quiet_night(%__MODULE__{}=board) do
+  def enable_quiet_night(%__MODULE__{} = board) do
     %{board | quiet_night: true}
   end
 
@@ -159,7 +163,7 @@ defmodule PandemicModel.Board do
 
   defp record_disease_cured(%__MODULE__{disease_state: state } = board, colour) do
     state = Map.put(state, colour, Disease.cure_disease(state[colour]) )
-    %{ board | disease_state: state  }
+    %{board | disease_state: state}
   end
 
   @spec treat_disease(__MODULE__.t(), city :: atom, colour :: atom) :: __MODULE__.t()
@@ -179,25 +183,26 @@ defmodule PandemicModel.Board do
   end
 
   defp possible_disease_erradication(board, colour) do
-    cond do
-      disease_active?(board, colour) -> board
-      true -> record_disease_cured(board, colour)
+    if disease_active?(board, colour) do
+      board
+    else
+      record_disease_cured(board, colour)
     end
   end
 
   defp return_disease_cube_to_pool(%__MODULE__{disease_state: state } = board, colour, count) do
     state = Map.put(state, colour, Disease.add_cubes(state[colour], count) )
-    %__MODULE__{ board | disease_state: state  }
+    %__MODULE__{board | disease_state: state}
   end
 
   defp take_disease_cube_from_pool(%__MODULE__{disease_state: state } = board, colour, count) do
     state = Map.put(state, colour, Disease.remove_cubes(state[colour], count) )
-    %__MODULE__{ board | disease_state: state  }
+    %__MODULE__{board | disease_state: state}
   end
 
   defp increase_city_disease_count(board, city, colour, quantity) do
     infected_city_counts = board.cities_with_disease[city]
-    infected_city_counts = Map.update(infected_city_counts, colour, 0, &( min( &1 + quantity, 3)))
+    infected_city_counts = Map.update(infected_city_counts, colour, 0, &(min(&1 + quantity, 3)))
     %__MODULE__{board | cities_with_disease: Map.put(board.cities_with_disease, city, infected_city_counts)}
   end
 
@@ -208,10 +213,10 @@ defmodule PandemicModel.Board do
   end
 
   defp move_top_card_to_discard_pile(board) do
-    %{board | infection_deck: tl(board.infection_deck ), infection_discard_pile: Enum.concat([ hd(board.infection_deck)], board.infection_discard_pile )}
+    %{board | infection_deck: tl(board.infection_deck), infection_discard_pile: Enum.concat([hd(board.infection_deck)], board.infection_discard_pile)}
   end
 
-  defp infect(%__MODULE__{} = board, quantity \\ 1) when quantity in [1,2,3] do
+  defp infect(%__MODULE__{} = board, quantity \\ 1) when quantity in [1, 2, 3] do
     infected_city  = hd(board.infection_deck)
     board = board
       |>  move_top_card_to_discard_pile()
@@ -290,7 +295,7 @@ defmodule PandemicModel.Board do
   def reinfect(board, epidemic_city) do
     new_infection_deck = [epidemic_city | board.infection_discard_pile]
       |> Enum.shuffle
-      |> Enum.concat( board.infection_deck )
+      |> Enum.concat(board.infection_deck)
 
     %__MODULE__{board | infection_deck: new_infection_deck , infection_discard_pile: []}
   end
@@ -352,7 +357,7 @@ defmodule PandemicModel.Board do
     %{board | player_deck: all_city_cards ++ event_cards |> Enum.shuffle(), player_discard_pile: []}
   end
 
-  def remove_from_infection_discard_pile(%__MODULE__{}=board, city) do
+  def remove_from_infection_discard_pile(%__MODULE__{} = board, city) do
     %{board | infection_discard_pile: board.infection_discard_pile -- [city]}
   end
 end

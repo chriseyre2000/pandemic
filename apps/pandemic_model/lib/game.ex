@@ -1,10 +1,14 @@
 defmodule PandemicModel.Game do
+  @moduledoc """
+  This handles the game itself owning the board and the players.
+  """
   alias PandemicModel.{Board, Player, PlayerCard}
 
   defstruct ~w[board players]a
 
-  @roles [:medic, :scientist, :researcher, :contingency_planner, :dispatcher, :operations_expert, :quarentene_specialist]
+  @roles ~w[medic scientist researcher contingency_planner dispatcher operations_expert quarentene_specialist]a
 
+  @spec new(number_of_players :: pos_integer(), number_of_epidemic_cards :: pos_integer()) :: __MODULE__
   def new(number_of_players, number_of_epidemic_cards \\ 4) when number_of_players in 2..4 do
     board = Board.new()
       |> Board.setup_board()
@@ -29,13 +33,12 @@ defmodule PandemicModel.Game do
 
   defp cards_per_player(n) when n in 2..4, do: 6 - n
 
-  defp add_epidemic_cards(%__MODULE__{board: %Board{ player_deck: player_deck } = board} = game, number_of_epidemic_cards) when number_of_epidemic_cards in 3..7 do
+  defp add_epidemic_cards(%__MODULE__{board: %Board{player_deck: player_deck} = board} = game, number_of_epidemic_cards) when number_of_epidemic_cards in 3..7 do
      group_size = div(Enum.count(player_deck), number_of_epidemic_cards)
 
      player_deck = player_deck
       |> Enum.chunk_every(group_size)
-      |> Enum.map(&((&1 ++ [ PlayerCard.new_epidemic() ])
-      |> Enum.shuffle() ))
+      |> Enum.map(&((&1 ++ [PlayerCard.new_epidemic()]) |> Enum.shuffle()))
       |> List.flatten
 
     %{game | board: %{board | player_deck: player_deck}}

@@ -141,7 +141,6 @@ defmodule PandemicModel.Player.Test do
 
       refute london_card in player.cards
       assert london_card in player_two.cards
-
     end
 
     test "Two players in the same city can knowledge share a card of that city when player 2 has the card",
@@ -241,8 +240,6 @@ defmodule PandemicModel.Player.Test do
       assert {:error, "Disease has already been cured"} = player
         |> Player.cure_disease(cards, board)
     end
-
-
 
     test "Cannot cure a disease in a research station with four cards plus an event card of an active disease",
       %{player: player, board: board, government_grant_card: government_grant_card }

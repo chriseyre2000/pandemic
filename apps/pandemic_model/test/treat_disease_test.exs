@@ -3,7 +3,7 @@ defmodule PandemicModel.TreatDisease.Test do
   alias PandemicModel.{Board, Cities}
 
   test "Treat disease" do
-    b = Board.new() 
+    b = Board.new()
       |> Board.setup_board()
     infected_city = hd(b.infection_discard_pile)
     disease_colour = Cities.city_colour(infected_city)
@@ -17,5 +17,5 @@ defmodule PandemicModel.TreatDisease.Test do
     final_disease_count = Board.city_infection_count(b, infected_city, disease_colour)
 
     assert 0 == final_disease_count
-  end  
-end  
+  end
+end
