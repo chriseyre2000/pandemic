@@ -4,6 +4,11 @@ defmodule PandemicModel.Cities do
   the links to other cities.
   """
   alias PandemicModel.City
+
+  @spec all_cities :: [City]
+  @doc """
+  Holds the knowledge about the cities, associated colour and links.
+  """
   def all_cities do
     [
       City.new(:algiers, "Algiers", :black, [:cairo, :istanbul, :paris, :madrid]),
@@ -57,22 +62,31 @@ defmodule PandemicModel.Cities do
     ]
   end
 
+  @spec find_by(city :: atom) :: City
+  @doc """
+  The full city details for a given city id
+  """
   def find_by(id) do
-    all_cities() |> Enum.find(&(&1.id == id))
+    all_cities()
+      |> Enum.find(&(&1.id == id))
   end
 
+  @spec all_keys :: [atom]
   def all_keys do
     all_cities() |> Enum.map(&Map.get(&1, :id))
   end
 
+  @spec city_colour(city :: atom) :: :black | :blue | :red | :yellow
   def city_colour(id) do
     find_by(id).colour
   end
 
+  @spec city_links(city :: atom) :: [atom]
   def city_links(id) do
     find_by(id).links
   end
 
+  @spec city_name(city :: atom) :: binary
   def city_name(id) do
     find_by(id).name
   end

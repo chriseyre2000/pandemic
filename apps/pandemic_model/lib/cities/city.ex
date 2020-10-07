@@ -15,6 +15,12 @@ defmodule PandemicModel.City do
                                               and is_list(links)
                                               and length(links) > 0
 
+  @spec new(id :: atom, name :: binary, colour :: :black | :blue | :red | :yellow, links :: [atom]) :: __MODULE__
+  @doc """
+  Creates a city.
+
+  The error handling here is strict (as in no hints as to why it is wrong) as it is intended for internal use only.
+  """
   def new(id, name, colour, links) when is_city(id, name, colour, links) do
     %__MODULE__{id: id, name: name, colour: colour, links: links}
   end
