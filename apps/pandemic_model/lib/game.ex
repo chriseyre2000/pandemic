@@ -8,6 +8,8 @@ defmodule PandemicModel.Game do
 
   @roles ~w[medic scientist researcher contingency_planner dispatcher operations_expert quarentene_specialist]a
 
+  # Implemented but not tested medic and quarentene_specialist actions.
+
   @spec new(number_of_players :: pos_integer(), number_of_epidemic_cards :: pos_integer()) :: __MODULE__
   def new(number_of_players, number_of_epidemic_cards \\ 4) when number_of_players in 2..4 do
     board = Board.new()
@@ -31,7 +33,8 @@ defmodule PandemicModel.Game do
     add_players(game, cards_each, remaining_roles, n - 1)
   end
 
-  defp cards_per_player(n) when n in 2..4, do: 6 - n
+  defp cards_per_player(player_count) when player_count in 2..4, do: 6 - player_count
+  defp cards_per_player(player_count) when player_count in 5..6, do: 2
 
   defp add_epidemic_cards(%__MODULE__{board: %Board{player_deck: player_deck} = board} = game, number_of_epidemic_cards) when number_of_epidemic_cards in 3..7 do
      group_size = div(Enum.count(player_deck), number_of_epidemic_cards)

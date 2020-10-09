@@ -10,63 +10,80 @@ This holds the structure and behaviour of the Player.
 
   @spec new(atom(), atom(), [atom()]) :: PandemicModel.Player
   def new(role, city \\ :atlanta, cards \\ []) do
-    %__MODULE__{role: role, city: city, cards: cards}
+    %Player{role: role, city: city, cards: cards}
   end
 
   @doc """
   Adds a card to the player
   """
-  def add_card(%__MODULE__{} = player, %PlayerCard{} = card) do
+  def add_card(%Player{} = player, %PlayerCard{} = card) do
     %{player | cards: [card| player.cards]}
   end
 
-  def add_cards(%__MODULE__{} = player, []) do
+  def add_cards(%Player{} = player, []) do
     player
   end
 
-  def add_cards(%__MODULE__{} = player, [card | remaining_cards]) do
+  def add_cards(%Player{} = player, [card | remaining_cards]) do
     player
       |> Player.add_card(card)
       |> Player.add_cards(remaining_cards)
   end
 
-  def drive_ferry(%__MODULE__{} = player, destination, board) do
+  def drive_ferry(%Player{role: role} = player, destination, board) do
     if destination in Cities.city_links(player.city) do
-      {:ok, %{player | city: destination}, board}
+      {
+        :ok,
+        %{player | city: destination},
+        board |> Board.player_arrives_in_city(role, destination, :drive_ferry)
+      }
     else
       {:error, "Can't drive/ferry from #{ Cities.city_name(player.city)} to #{Cities.city_name(destination)}" }
     end
   end
 
-  def direct_flight(%__MODULE__{} = player, %PlayerCard{:type => :city, :city => destination}, board) do
-    {:ok, %{player | city: destination}, board}
+  def direct_flight(%Player{role: role} = player, %PlayerCard{:type => :city, :city => destination}, board) do
+    {
+      :ok,
+      %{player | city: destination},
+      board |> Board.player_arrives_in_city(role, destination, :direct_flight)
+    }
   end
 
-  def direct_flight(%__MODULE__{} = _player, %PlayerCard{:type => type} = _card, _board) do
+  def direct_flight(%Player{}, %PlayerCard{:type => type} = _card, _board) do
     {:error, "That's an #{type} card, you need a city card for a direct flight."}
   end
 
-  def charter_flight(%__MODULE__{} = player, %PlayerCard{:type => :city, :city => city}, destination_city, board) do
+  def charter_flight(%Player{role: role} = player, %PlayerCard{:type => :city, :city => city}, destination, board) do
     if city == player.city do
-      {:ok, %{player | city: destination_city}, board}
+      {
+       :ok,
+       %{player | city: destination},
+       board |> Board.player_arrives_in_city(role, destination, :charter_flight)
+      }
     else
       {:error, "You are currently in #{ Cities.city_name(player.city)} but the card was for #{ Cities.city_name(city)}"}
     end
   end
 
-  def charter_flight(%__MODULE__{} = _player, %PlayerCard{:type => type}, _destination_city, _board) do
+  def charter_flight(%Player{} = _player, %PlayerCard{:type => type}, _destination, _board) do
     {:error, "That's an #{type} card, you need a city card for a charter flight."}
   end
 
-  def shuttle_flight(%__MODULE__{} = player, destination, %Board{} = board) do
+  def shuttle_flight(%Player{role: role} = player, destination, %Board{} = board) do
     cond do
       not Board.research_station?(board, player.city) -> {:error, "You are in #{ Cities.city_name(player.city)} which does not have a research station."}
       not Board.research_station?(board, destination) -> {:error, "There is no research station at #{ Cities.city_name(destination)}"}
-      true -> {:ok, %{player | city: destination}, board}
+      true ->
+        {
+          :ok,
+          %{player | city: destination},
+          board |> Board.player_arrives_in_city(role, destination, :shuttle_flight)
+        }
     end
   end
 
-  def build_a_research_station(%__MODULE__{} = player, %Board{} = board) do
+  def build_a_research_station(%Player{} = player, %Board{} = board) do
     cond do
       not Board.may_add_research_station?(board) -> {:error, "We already have 6 reasearch stations, can't build more"}
       Board.research_station?(board, player.city) -> {:error, "There is already a research station at #{ Cities.city_name(player.city)}"}
@@ -74,7 +91,7 @@ This holds the structure and behaviour of the Player.
     end
   end
 
-  def treat_disease(%__MODULE__{} = player, colour, board) do
+  def treat_disease(%Player{} = player, colour, board) do
     if Board.city_infection_count(board, player.city, colour) == 0 do
       {:error, "No disease to cure here"}
     else
@@ -82,7 +99,7 @@ This holds the structure and behaviour of the Player.
     end
   end
 
-  def share_knowledge(%__MODULE__{} = player, %__MODULE__{} = other_player, %PlayerCard{:type => :city, :city => city} = card, board ) do
+  def share_knowledge(%Player{} = player, %Player{} = other_player, %PlayerCard{:type => :city, :city => city} = card, board ) do
     cond do
       player.city != other_player.city -> {:error, "You need to be in the same city to share knowledge"}
       player.city != city -> {:error, "You need to be in the same city as the card to share knowledge"}
@@ -95,7 +112,7 @@ This holds the structure and behaviour of the Player.
     end
   end
 
-  def share_knowledge(%__MODULE__{} = _player, %__MODULE__{} = _otherPlayer, %PlayerCard{:type => type}, _board) do
+  def share_knowledge(%Player{} = _player, %Player{} = _otherPlayer, %PlayerCard{:type => type}, _board) do
     {:error, "That's a #{type} card, you need a city card to share knowledge."}
   end
 
@@ -109,8 +126,6 @@ This holds the structure and behaviour of the Player.
       true -> {:ok, %{player | cards: player.cards -- cards }, Board.cure_disease(board, cards) }
     end
   end
-
-  # PlayerCard.new_event(:forecast),
 
   def government_grant(%Player{cards: cards} = player, city, board) do
     government_grant_card = cards |> Enum.find(&(&1.action == :government_grant))
@@ -127,27 +142,38 @@ This holds the structure and behaviour of the Player.
     end
   end
 
-  def airlift_self(%Player{cards: cards} = player, city, board) do
+  def airlift_self(%Player{role: role, cards: cards} = player, city, board) do
     airlift_card = cards |> Enum.find(&(&1.action == :airlift_card))
 
     cond do
       airlift_card == nil -> {:error, "You don't have the airlift card"}
       player.city == city -> {:error, "You are already in #{Cities.city_name(city)}"}
-      true -> {:ok,
-               %{player | city: city, cards: cards -- [airlift_card]},
-               board |> Board.add_to_player_discard_pile(airlift_card)}
+      true ->
+        {
+          :ok,
+          %{player | city: city, cards: cards -- [airlift_card]},
+          board
+            |> Board.add_to_player_discard_pile(airlift_card)
+            |> Board.player_arrives_in_city(role, city, :airlift)
+        }
     end
   end
 
-  def airlift_other(%Player{cards: cards} = player, %Player{} = travelling_player, city, board) when player != travelling_player  do
+  def airlift_other(%Player{cards: cards} = player, %Player{role: role} = travelling_player, city, board) when player != travelling_player  do
     airlift_card = cards |> Enum.find(&(&1.action == :airlift_card))
 
     cond do
       airlift_card == nil -> {:error, "You don't have the airlift card"}
       travelling_player.city == city -> {:error, "#{travelling_player.role} is already in #{Cities.city_name(city)}"}
-      true -> {:ok, %{player | cards: cards -- [airlift_card]},
-                    %{travelling_player | city: city},
-                    board |> Board.add_to_player_discard_pile(airlift_card)}
+      true ->
+        {
+          :ok,
+          %{player | cards: cards -- [airlift_card]},
+          %{travelling_player | city: city},
+          board
+            |> Board.add_to_player_discard_pile(airlift_card)
+            |> Board.player_arrives_in_city(role, city, :airlift)
+        }
     end
   end
 
@@ -177,4 +203,33 @@ This holds the structure and behaviour of the Player.
                             |> Board.remove_from_infection_discard_pile(city)}
     end
   end
+
+  @spec forecast_peek(__MODULE__, Board) :: {:error, message :: binary} | {:ok, [atom]}
+  def forecast_peek(%Player{cards: cards}, %Board{} = board) do
+    forecast_card = cards |> Enum.find(&(&1.action == :forecast_card))
+
+    if forecast_card == nil do
+      {:error, "You don't have the forecast card"}
+    else
+      {:ok, board.infection_deck |> Enum.take(6)}
+    end
+  end
+
+  def forecast_reorder(%Player{cards: cards} = player, infection_cards, %Board{} = board) do
+    forecast_card = cards |> Enum.find(&(&1.action == :forecast_card))
+    cond do
+      forecast_card == nil ->
+        {:error, "You don't have the forecast card"}
+      board |> Board.forecast_cards?(infection_cards) ->
+        {:ok,
+        %{player | cards: cards -- [forecast_card]},
+        board
+          |> Board.add_to_player_discard_pile(forecast_card)
+          |> Board.reorder_for_forecast(infection_cards)
+        }
+      true ->
+        {:error, "Those are not the cards that were just peeked"}
+    end
+  end
+
 end

@@ -12,9 +12,10 @@ defmodule PandemicModel.Board.Test do
     assert Enum.empty?(b.infection_discard_pile)
   end
 
-  test "An empty board has 24 red disease cubes" do
+  test "An empty board has 0 red diseases" do
     b = Board.new()
-    assert b.disease_state[:red].unused_cubes == 24
+    assert 0 == b
+      |> Board.total_disease_on_board(:red)
   end
 
   test "State of board at start of game" do
@@ -23,7 +24,7 @@ defmodule PandemicModel.Board.Test do
 
     assert 18 == b.cities_with_disease |> Map.values |> Enum.map(&Map.values/1) |> List.flatten |> Enum.sum
     assert 9 == b.infection_discard_pile |> Enum.count
-    assert (24 * 4 - 18) == b.disease_state |> Map.values |> Enum.map(&Map.get(&1, :unused_cubes)) |> Enum.sum
+    assert 18 == b |> Board.total_disease_on_board()
   end
 
   test "infect_cities moves the top two cards to discard pile" do
@@ -158,10 +159,8 @@ defmodule PandemicModel.Board.Test do
       refute Board.disease_active?(board, infected_city.colour)
       refute Board.disease_erradicated?(board, infected_city.colour)
 
-      board = board
-        |> Board.treat_disease(infected_city.id, infected_city.colour)
-        |> Board.treat_disease(infected_city.id, infected_city.colour)
-        |> Board.treat_disease(infected_city.id, infected_city.colour)
+      board = 1..3
+        |> Enum.reduce(board, fn _loop, board -> Board.treat_disease(board, infected_city.id, infected_city.colour) end)
 
       assert 0 == Board.city_infection_count(board, infected_city.id, infected_city.colour)
 
