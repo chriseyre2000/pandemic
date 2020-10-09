@@ -69,8 +69,12 @@ defmodule PandemicModel.Board do
   The current infection rate.
   This is the number cities that are infected at the end of the players turn.
   """
-  def current_infection_rate(board) do
-    hd(board.infection_rate)
+  def current_infection_rate(%Board{infection_rate: []} = _board) do
+    4
+  end
+
+  def current_infection_rate(%Board{infection_rate: [current_rate|_]}) do
+    current_rate
   end
 
   @spec disease_active?(Board.t(), atom) :: boolean
@@ -287,8 +291,8 @@ defmodule PandemicModel.Board do
     end
   end
 
-  defp update_infection_rate(board) do
-    %__MODULE__{board | infection_rate: tl(board.infection_rate)}
+  defp update_infection_rate(%Board{} = board) do
+    %{board | infection_rate: tl(board.infection_rate)}
   end
 
   defp prevent_outbreak?(%Board{} = board, city, disease_colour) do
@@ -322,6 +326,10 @@ defmodule PandemicModel.Board do
     end
   end
 
+  @spec epidemic(PandemicModel.Board.t()) :: PandemicModel.Board.t()
+  @doc """
+  Handle an epidemic - triggered by drawing a player card
+  """
   def epidemic(%Board{} = board) do
     board = board
       |> update_infection_rate()
@@ -345,12 +353,12 @@ defmodule PandemicModel.Board do
     |> reinfect(epidemic_city)
   end
 
-  def reinfect(board, epidemic_city) do
+  defp reinfect(%Board{} = board, epidemic_city) do
     new_infection_deck = [epidemic_city | board.infection_discard_pile]
       |> Enum.shuffle
       |> Enum.concat(board.infection_deck)
 
-    %__MODULE__{board | infection_deck: new_infection_deck , infection_discard_pile: []}
+    %{board | infection_deck: new_infection_deck , infection_discard_pile: []}
   end
 
   @spec infect_cities(__MODULE__.t()) :: __MODULE__.t()
