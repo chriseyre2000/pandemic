@@ -23,7 +23,7 @@ defmodule PandemicModel.Game.Test do
   test "A 2 player four epidemic game has 1 epidemic card in the first 11 cards" do
     game = Game.new(2, 4)
     assert 1 == game.board.player_deck
-      |> Enum.take(11)
+      |> Enum.take(12)
       |> Enum.filter(&(&1.type == :epidemic))
       |> Enum.count()
   end
