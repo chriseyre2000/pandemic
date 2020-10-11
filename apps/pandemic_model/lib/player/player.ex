@@ -3,21 +3,21 @@ defmodule PandemicModel.Player do
 This holds the structure and behaviour of the Player.
 """
   alias PandemicModel.{Board, Cities, Player, PlayerCard}
-  @player_keys ~w[role city cards]a
+  @player_keys ~w[role city cards actions_left once_per_turn_available]a
 
   @enforce_keys @player_keys
   defstruct @player_keys
 
-  @spec new(atom(), atom(), [atom()]) :: PandemicModel.Player
-  def new(role, city \\ :atlanta, cards \\ []) do
-    %Player{role: role, city: city, cards: cards}
+  @spec new(atom(), atom(), [atom()], pos_integer(), boolean) :: PandemicModel.Player
+  def new(role, city \\ :atlanta, cards \\ [], actions_left \\ 4, once_per_turn_available \\ true) do
+    %Player{role: role, city: city, cards: cards, actions_left: actions_left, once_per_turn_available: once_per_turn_available}
   end
 
   @doc """
   Adds a card to the player
   """
   def add_card(%Player{} = player, %PlayerCard{} = card) do
-    %{player | cards: [card| player.cards]}
+    %{player | cards: [card | player.cards]}
   end
 
   def add_cards(%Player{} = player, []) do
@@ -30,11 +30,17 @@ This holds the structure and behaviour of the Player.
       |> Player.add_cards(remaining_cards)
   end
 
+  defp decrement_actions(%Player{actions_left: actions_left} = player) do
+    %{player | actions_left: actions_left - 1}
+  end
+
   def drive_ferry(%Player{role: role} = player, destination, board) do
     if destination in Cities.city_links(player.city) do
       {
         :ok,
-        %{player | city: destination},
+        player
+          |> set_destination(destination)
+          |> decrement_actions(),
         board |> Board.player_arrives_in_city(role, destination, :drive_ferry)
       }
     else
@@ -45,8 +51,11 @@ This holds the structure and behaviour of the Player.
   def direct_flight(%Player{role: role} = player, %PlayerCard{:type => :city, :city => destination}, board) do
     {
       :ok,
-      %{player | city: destination},
-      board |> Board.player_arrives_in_city(role, destination, :direct_flight)
+      player
+        |> set_destination(destination)
+        |> decrement_actions(),
+      board
+        |> Board.player_arrives_in_city(role, destination, :direct_flight)
     }
   end
 
@@ -58,8 +67,11 @@ This holds the structure and behaviour of the Player.
     if city == player.city do
       {
        :ok,
-       %{player | city: destination},
-       board |> Board.player_arrives_in_city(role, destination, :charter_flight)
+       player
+         |> set_destination(destination)
+         |> decrement_actions(),
+       board
+         |> Board.player_arrives_in_city(role, destination, :charter_flight)
       }
     else
       {:error, "You are currently in #{ Cities.city_name(player.city)} but the card was for #{ Cities.city_name(city)}"}
@@ -77,8 +89,11 @@ This holds the structure and behaviour of the Player.
       true ->
         {
           :ok,
-          %{player | city: destination},
-          board |> Board.player_arrives_in_city(role, destination, :shuttle_flight)
+          player
+            |> set_destination(destination)
+            |> decrement_actions(),
+          board
+            |> Board.player_arrives_in_city(role, destination, :shuttle_flight)
         }
     end
   end
@@ -87,7 +102,14 @@ This holds the structure and behaviour of the Player.
     cond do
       not Board.may_add_research_station?(board) -> {:error, "We already have 6 reasearch stations, can't build more"}
       Board.research_station?(board, player.city) -> {:error, "There is already a research station at #{ Cities.city_name(player.city)}"}
-      true -> {:ok, player, Board.add_research_station(board, player.city)}
+      true ->
+        {
+          :ok,
+          player
+            |> decrement_actions(),
+          board
+            |> Board.add_research_station(player.city)
+        }
     end
   end
 
@@ -95,7 +117,13 @@ This holds the structure and behaviour of the Player.
     if Board.city_infection_count(board, player.city, colour) == 0 do
       {:error, "No disease to cure here"}
     else
-      {:ok, player, Board.treat_disease(board, player.city, colour)}
+      {
+        :ok,
+        player
+          |> decrement_actions(),
+        board
+          |> Board.treat_disease(player.city, colour)
+      }
     end
   end
 
@@ -103,11 +131,26 @@ This holds the structure and behaviour of the Player.
     cond do
       player.city != other_player.city -> {:error, "You need to be in the same city to share knowledge"}
       invalid_city?(player, other_player, card) -> {:error, "You need to be in the same city as the card to share knowledge"}
-      card in player.cards -> {:ok,
-                                %{player | cards: player.cards -- [card]},
-                                %{other_player | cards: other_player.cards ++ [card]},
-                                board}
-      card in other_player.cards -> {:ok, %{player | cards: player.cards ++ [card] }, %{other_player | cards: other_player.cards -- [card]}, board}
+      card in player.cards ->
+        {
+          :ok,
+          player
+            |> remove_card(card)
+            |> decrement_actions(),
+          other_player
+            |> add_card(card),
+          board
+        }
+      card in other_player.cards ->
+        {
+          :ok,
+          player
+            |> add_card(card)
+            |> decrement_actions(),
+          other_player
+            |> remove_card(card),
+          board
+        }
       true -> {:error, "Neither of you had the card for #{Cities.city_name(city)}"}
     end
   end
@@ -134,7 +177,15 @@ This holds the structure and behaviour of the Player.
       role != :scientist and cards |> Enum.map(&(&1.city)) |> Enum.map(&Cities.city_colour/1) |> Enum.frequencies() |> Map.values != [5] -> {:error, "You don't have 5 cards of the same colour"}
       role == :scientist and cards |> Enum.map(&(&1.city)) |> Enum.map(&Cities.city_colour/1) |> Enum.frequencies() |> Map.values != [4] -> {:error, "You don't have 4 cards of the same colour"}
       not Board.disease_active?(board, cards |> hd() |> Map.get(:city) |> Cities.city_colour()) -> {:error, "Disease has already been cured"}
-      true -> {:ok, %{player | cards: player.cards -- cards }, Board.cure_disease(board, cards) }
+      true ->
+        {
+          :ok,
+          player
+            |> remove_cards(cards)
+            |> decrement_actions(),
+          board
+            |> Board.cure_disease(cards)
+        }
     end
   end
 
@@ -145,11 +196,15 @@ This holds the structure and behaviour of the Player.
        false == board |> Board.may_add_research_station?() -> {:error, "There are already 6 research stations"}
        board |> Board.research_station?(city) -> {:error, "There is already a research station there"}
        true ->
-         board = board
-           |> Board.add_to_player_discard_pile(government_grant_card)
-           |> Board.add_research_station(city)
-
-        {:ok, %{player | cards: player.cards -- [government_grant_card] }, board }
+        {
+          :ok,
+          player
+            |> remove_card(government_grant_card)
+            |> decrement_actions(),
+          board
+            |> Board.add_to_player_discard_pile(government_grant_card)
+            |> Board.add_research_station(city)
+        }
     end
   end
 
@@ -162,7 +217,10 @@ This holds the structure and behaviour of the Player.
       true ->
         {
           :ok,
-          %{player | city: city, cards: cards -- [airlift_card]},
+          player
+            |> remove_card(airlift_card)
+            |> set_destination(city)
+            |> decrement_actions(),
           board
             |> Board.add_to_player_discard_pile(airlift_card)
             |> Board.player_arrives_in_city(role, city, :airlift)
@@ -179,7 +237,9 @@ This holds the structure and behaviour of the Player.
       true ->
         {
           :ok,
-          %{player | cards: cards -- [airlift_card]},
+          player
+            |> remove_card(airlift_card)
+            |> decrement_actions(),
           %{travelling_player | city: city},
           board
             |> Board.add_to_player_discard_pile(airlift_card)
@@ -194,11 +254,14 @@ This holds the structure and behaviour of the Player.
     if quiet_night_card == nil do
        {:error, "You don't have the quiet night card"}
     else
-       {:ok,
-             %{player | cards: cards -- [quiet_night_card]},
-             board
-               |> Board.add_to_player_discard_pile(quiet_night_card)
-               |> Board.enable_quiet_night()
+       {
+         :ok,
+         player
+           |> remove_card(quiet_night_card)
+           |> decrement_actions(),
+         board
+           |> Board.add_to_player_discard_pile(quiet_night_card)
+           |> Board.enable_quiet_night()
        }
     end
   end
@@ -209,9 +272,16 @@ This holds the structure and behaviour of the Player.
     cond do
       resiliant_population_card == nil -> {:error, "You don't have the resiliant population card"}
       city not in board.infection_discard_pile -> {:error, "#{Cities.city_name(city)} is not in the infection discard pile"}
-      true -> {:ok, %{player | cards: cards -- [resiliant_population_card]},
-                      board |> Board.add_to_player_discard_pile(resiliant_population_card)
-                            |> Board.remove_from_infection_discard_pile(city)}
+      true ->
+        {
+          :ok,
+          player
+            |> remove_card(resiliant_population_card)
+            |> decrement_actions(),
+          board
+            |> Board.add_to_player_discard_pile(resiliant_population_card)
+            |> Board.remove_from_infection_discard_pile(city)
+        }
     end
   end
 
@@ -233,7 +303,9 @@ This holds the structure and behaviour of the Player.
         {:error, "You don't have the forecast card"}
       board |> Board.forecast_cards?(infection_cards) ->
         {:ok,
-        %{player | cards: cards -- [forecast_card]},
+        player
+          |> remove_card(forecast_card)
+          |> decrement_actions(),
         board
           |> Board.add_to_player_discard_pile(forecast_card)
           |> Board.reorder_for_forecast(infection_cards)
@@ -241,6 +313,18 @@ This holds the structure and behaviour of the Player.
       true ->
         {:error, "Those are not the cards that were just peeked"}
     end
+  end
+
+  defp remove_card(%Player{cards: cards} = player, %PlayerCard{} = card) do
+    %{player | cards: cards -- [card]}
+  end
+
+  defp remove_cards(%Player{cards: cards} = player, player_cards) do
+    %{player | cards: cards -- player_cards}
+  end
+
+  defp set_destination(%Player{} = player, city) do
+    %{player | city: city}
   end
 
 end
