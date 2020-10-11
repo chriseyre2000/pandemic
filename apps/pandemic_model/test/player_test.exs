@@ -216,6 +216,9 @@ defmodule PandemicModel.Player.Test do
     do
 
       cards = hand_with_n_player_cards_that_are(5, :blue)
+
+      player = %{player | role: :medic}
+
       player = player
         |> Player.add_cards(cards)
 
@@ -232,10 +235,36 @@ defmodule PandemicModel.Player.Test do
         |> Board.disease_active?(:blue)
     end
 
+    test "Scientist Can cure a disease in a research station with four cards of an active disease",
+      %{player: player, board: board}
+    do
+
+      cards = hand_with_n_player_cards_that_are(4, :blue)
+      player = player
+        |> Player.add_cards(cards)
+
+      board = board
+        |> Board.add_research_station(player.city)
+
+      assert board
+        |> Board.disease_active?(:blue)
+
+      assert :scientist == player.role
+
+      assert {:ok, player, board} = player
+        |> Player.cure_disease(cards, board)
+
+      refute board
+        |> Board.disease_active?(:blue)
+    end
+
     test "Cannot cure a disease in a research station with five cards of an cured disease",
       %{player: player, board: board}
     do
       cards = hand_with_n_player_cards_that_are(5, :blue)
+
+      player = %{player | role: :medic}
+
       player = player
         |> Player.add_cards(cards)
 
@@ -260,6 +289,8 @@ defmodule PandemicModel.Player.Test do
     do
 
       cards = hand_with_n_player_cards_that_are(4, :blue) ++ [government_grant_card]
+      player = %{player | role: :medic}
+
       player = player
         |> Player.add_cards(cards)
 
@@ -278,6 +309,9 @@ defmodule PandemicModel.Player.Test do
     do
 
       cards = hand_with_n_player_cards_that_are(4, :blue)
+
+      player = %{player | role: :medic}
+
       player = player
         |> Player.add_cards(cards)
 

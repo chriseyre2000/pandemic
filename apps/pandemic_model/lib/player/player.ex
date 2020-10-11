@@ -125,12 +125,14 @@ This holds the structure and behaviour of the Player.
     end
   end
 
-  def cure_disease(%Player{} = player, cards, %Board{} = board) do
+  def cure_disease(%Player{role: role} = player, cards, %Board{} = board) do
     cond do
-      Enum.count(cards) != 5 -> {:error, "You need 5 cards and only supplied #{Enum.count(cards)}"}
+      role != :scientist and Enum.count(cards) != 5 -> {:error, "You need 5 cards and only supplied #{Enum.count(cards)}"}
+      role == :scientist and Enum.count(cards) != 4 -> {:error, "You need 4 cards and only supplied #{Enum.count(cards)}"}
       cards |> Enum.any?(&(&1.type != :city)) -> {:error, "All the cards need to be city cards"}
       cards -- player.cards != [] -> {:error, "You don't have those cards"}
-      cards |> Enum.map(&(&1.city)) |> Enum.map(&Cities.city_colour/1) |> Enum.frequencies() |> Map.values != [5] -> {:error, "You don't have 5 cards of the same colour"}
+      role != :scientist and cards |> Enum.map(&(&1.city)) |> Enum.map(&Cities.city_colour/1) |> Enum.frequencies() |> Map.values != [5] -> {:error, "You don't have 5 cards of the same colour"}
+      role == :scientist and cards |> Enum.map(&(&1.city)) |> Enum.map(&Cities.city_colour/1) |> Enum.frequencies() |> Map.values != [4] -> {:error, "You don't have 4 cards of the same colour"}
       not Board.disease_active?(board, cards |> hd() |> Map.get(:city) |> Cities.city_colour()) -> {:error, "Disease has already been cured"}
       true -> {:ok, %{player | cards: player.cards -- cards }, Board.cure_disease(board, cards) }
     end
