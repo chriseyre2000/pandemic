@@ -102,7 +102,7 @@ This holds the structure and behaviour of the Player.
   def share_knowledge(%Player{} = player, %Player{} = other_player, %PlayerCard{:type => :city, :city => city} = card, board ) do
     cond do
       player.city != other_player.city -> {:error, "You need to be in the same city to share knowledge"}
-      player.city != city -> {:error, "You need to be in the same city as the card to share knowledge"}
+      invalid_city?(player, other_player, card) -> {:error, "You need to be in the same city as the card to share knowledge"}
       card in player.cards -> {:ok,
                                 %{player | cards: player.cards -- [card]},
                                 %{other_player | cards: other_player.cards ++ [card]},
@@ -114,6 +114,15 @@ This holds the structure and behaviour of the Player.
 
   def share_knowledge(%Player{} = _player, %Player{} = _otherPlayer, %PlayerCard{:type => type}, _board) do
     {:error, "That's a #{type} card, you need a city card to share knowledge."}
+  end
+
+  defp invalid_city?(%Player{} = player_one, %Player{} = other_player, %PlayerCard{:type => :city, :city => city} = card) do
+    cond do
+      player_one.role == :researcher and card in player_one.cards -> false
+      other_player.role == :researcher and card in other_player.cards -> false
+      player_one.city != city -> true
+      true -> false
+    end
   end
 
   def cure_disease(%Player{} = player, cards, %Board{} = board) do

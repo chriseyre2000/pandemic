@@ -172,6 +172,20 @@ defmodule PandemicModel.Player.Test do
         |> Player.share_knowledge(player_two, paris_card, board)
     end
 
+    test "Two players in the same city can share a card of another city if taken from the researcher",
+      %{player: player, player_two: player_two, board: board, paris_card: paris_card}
+    do
+      player = %{player | role: :researcher}
+
+      player = player
+        |> Player.add_card(paris_card)
+      assert {:ok, player, player_two, board} = player
+        |> Player.share_knowledge(player_two, paris_card, board)
+
+      refute paris_card in player.cards
+      assert paris_card in player_two.cards
+    end
+
     test "A player in london cannot share knowledge with a player in paris",
       %{player: player, london_card: london_card, paris_card: paris_card, board: board}
     do
