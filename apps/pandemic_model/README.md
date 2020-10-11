@@ -6,8 +6,8 @@ This is an attempt to model the Pandemic board game as an Elixir domain model.
 
 2. Now working on the player deck (/)
 
-3. Work on action cards
+3. Work on action cards (/)
 
-4. Work on Roles
+4. Work on Roles - Only dispatcher to do
 
 We now have a game module that handles deal out the cards and roles.
