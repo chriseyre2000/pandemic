@@ -417,7 +417,7 @@ defmodule PandemicModel.Player.Test do
       |> Map.put(:player_two, Player.new(:dispatcher, :london))
       |> Map.put(:government_grant_card, PlayerCard.new_event(:government_grant))
       |> Map.put(:quiet_night, PlayerCard.new_event(:quiet_night))
-      |> Map.put(:airlift_card, PlayerCard.new_event(:airlift_card))
+      |> Map.put(:airlift_card, PlayerCard.new_event(:airlift))
       |> Map.put(:london_card, PlayerCard.new_city(:london))
       |> Map.put(:paris_card, PlayerCard.new_city(:paris))
       |> Map.put(:resiliant_population, PlayerCard.new_event(:resiliant_population))

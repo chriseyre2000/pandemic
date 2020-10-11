@@ -3,14 +3,18 @@ defmodule PandemicModel.Player do
 This holds the structure and behaviour of the Player.
 """
   alias PandemicModel.{Board, Cities, Player, PlayerCard}
-  @player_keys ~w[role city cards actions_left once_per_turn_available]a
+  @player_keys ~w[role city cards actions_left once_per_turn_available stored_card]a
 
   @enforce_keys @player_keys
   defstruct @player_keys
 
   @spec new(atom(), atom(), [atom()], pos_integer(), boolean) :: PandemicModel.Player
   def new(role, city \\ :atlanta, cards \\ [], actions_left \\ 4, once_per_turn_available \\ true) do
-    %Player{role: role, city: city, cards: cards, actions_left: actions_left, once_per_turn_available: once_per_turn_available}
+    %Player{role: role, city: city, cards: cards, actions_left: actions_left, once_per_turn_available: once_per_turn_available, stored_card: nil}
+  end
+
+  def start_of_turn(%Player{role: _role} = player) do
+    %{player | actions_left: 4, once_per_turn_available: true}
   end
 
   @doc """
@@ -28,10 +32,6 @@ This holds the structure and behaviour of the Player.
     player
       |> Player.add_card(card)
       |> Player.add_cards(remaining_cards)
-  end
-
-  defp decrement_actions(%Player{actions_left: actions_left} = player) do
-    %{player | actions_left: actions_left - 1}
   end
 
   def drive_ferry(%Player{role: role} = player, destination, board) do
@@ -189,18 +189,28 @@ This holds the structure and behaviour of the Player.
     end
   end
 
-  def government_grant(%Player{cards: cards} = player, city, board) do
-    government_grant_card = cards |> Enum.find(&(&1.action == :government_grant))
+  defp get_card(role, action, stored_card, cards) do
+    if role == :contingency_planner and stored_card.action == action do
+      stored_card
+    else
+      cards |> Enum.find(&(&1.action == action))
+    end
+  end
+
+  def government_grant(%Player{role: role, cards: cards, stored_card: stored_card} = player, city, board) do
+    government_grant_card = get_card(role, :government_grant, stored_card, cards)
+
     cond do
        government_grant_card == nil -> {:error, "You don't have the government grant card" }
        false == board |> Board.may_add_research_station?() -> {:error, "There are already 6 research stations"}
-       board |> Board.research_station?(city) -> {:error, "There is already a research station there"}
+       board
+         |> Board.research_station?(city) -> {:error, "There is already a research station there"}
        true ->
         {
           :ok,
           player
             |> remove_card(government_grant_card)
-            |> decrement_actions(),
+            |> remove_stored_card_if_used(government_grant_card),
           board
             |> Board.add_to_player_discard_pile(government_grant_card)
             |> Board.add_research_station(city)
@@ -208,8 +218,8 @@ This holds the structure and behaviour of the Player.
     end
   end
 
-  def airlift_self(%Player{role: role, cards: cards} = player, city, board) do
-    airlift_card = cards |> Enum.find(&(&1.action == :airlift_card))
+  def airlift_self(%Player{role: role, cards: cards, stored_card: stored_card} = player, city, board) do
+    airlift_card = get_card(role, :airlift, stored_card, cards)
 
     cond do
       airlift_card == nil -> {:error, "You don't have the airlift card"}
@@ -220,7 +230,7 @@ This holds the structure and behaviour of the Player.
           player
             |> remove_card(airlift_card)
             |> set_destination(city)
-            |> decrement_actions(),
+            |> remove_stored_card_if_used(airlift_card),
           board
             |> Board.add_to_player_discard_pile(airlift_card)
             |> Board.player_arrives_in_city(role, city, :airlift)
@@ -228,8 +238,8 @@ This holds the structure and behaviour of the Player.
     end
   end
 
-  def airlift_other(%Player{cards: cards} = player, %Player{role: role} = travelling_player, city, board) when player != travelling_player  do
-    airlift_card = cards |> Enum.find(&(&1.action == :airlift_card))
+  def airlift_other(%Player{cards: cards, role: role, stored_card: stored_card} = player, %Player{} = travelling_player, city, %Board{} = board)  do
+    airlift_card = get_card(role, :airlift, stored_card, cards)
 
     cond do
       airlift_card == nil -> {:error, "You don't have the airlift card"}
@@ -239,7 +249,7 @@ This holds the structure and behaviour of the Player.
           :ok,
           player
             |> remove_card(airlift_card)
-            |> decrement_actions(),
+            |> remove_stored_card_if_used(airlift_card),
           %{travelling_player | city: city},
           board
             |> Board.add_to_player_discard_pile(airlift_card)
@@ -248,8 +258,8 @@ This holds the structure and behaviour of the Player.
     end
   end
 
-  def quiet_night(%Player{cards: cards} = player, board) do
-    quiet_night_card = cards |> Enum.find(&(&1.action == :quiet_night))
+  def quiet_night(%Player{cards: cards, role: role, stored_card: stored_card} = player, board) do
+    quiet_night_card = get_card(role, :quiet_night, stored_card, cards)
 
     if quiet_night_card == nil do
        {:error, "You don't have the quiet night card"}
@@ -258,7 +268,7 @@ This holds the structure and behaviour of the Player.
          :ok,
          player
            |> remove_card(quiet_night_card)
-           |> decrement_actions(),
+           |> remove_stored_card_if_used(quiet_night_card),
          board
            |> Board.add_to_player_discard_pile(quiet_night_card)
            |> Board.enable_quiet_night()
@@ -266,8 +276,8 @@ This holds the structure and behaviour of the Player.
     end
   end
 
-  def resiliant_poplulation(%Player{cards: cards} = player, city, board) do
-    resiliant_population_card = cards |> Enum.find(&(&1.action == :resiliant_population))
+  def resiliant_poplulation(%Player{cards: cards, role: role, stored_card: stored_card} = player, city, board) do
+    resiliant_population_card = get_card(role, :resiliant_population, stored_card, cards)
 
     cond do
       resiliant_population_card == nil -> {:error, "You don't have the resiliant population card"}
@@ -277,7 +287,7 @@ This holds the structure and behaviour of the Player.
           :ok,
           player
             |> remove_card(resiliant_population_card)
-            |> decrement_actions(),
+            |> remove_stored_card_if_used(resiliant_population_card),
           board
             |> Board.add_to_player_discard_pile(resiliant_population_card)
             |> Board.remove_from_infection_discard_pile(city)
@@ -286,8 +296,8 @@ This holds the structure and behaviour of the Player.
   end
 
   @spec forecast_peek(__MODULE__, Board) :: {:error, message :: binary} | {:ok, [atom]}
-  def forecast_peek(%Player{cards: cards}, %Board{} = board) do
-    forecast_card = cards |> Enum.find(&(&1.action == :forecast_card))
+  def forecast_peek(%Player{cards: cards, role: role, stored_card: stored_card}, %Board{} = board) do
+    forecast_card = get_card(role, :forecast_card, stored_card, cards)
 
     if forecast_card == nil do
       {:error, "You don't have the forecast card"}
@@ -296,8 +306,8 @@ This holds the structure and behaviour of the Player.
     end
   end
 
-  def forecast_reorder(%Player{cards: cards} = player, infection_cards, %Board{} = board) do
-    forecast_card = cards |> Enum.find(&(&1.action == :forecast_card))
+  def forecast_reorder(%Player{cards: cards, role: role, stored_card: stored_card} = player, infection_cards, %Board{} = board) do
+    forecast_card = get_card(role, :forecast_card, stored_card, cards)
     cond do
       forecast_card == nil ->
         {:error, "You don't have the forecast card"}
@@ -305,7 +315,7 @@ This holds the structure and behaviour of the Player.
         {:ok,
         player
           |> remove_card(forecast_card)
-          |> decrement_actions(),
+          |> remove_stored_card_if_used(forecast_card),
         board
           |> Board.add_to_player_discard_pile(forecast_card)
           |> Board.reorder_for_forecast(infection_cards)
@@ -313,6 +323,94 @@ This holds the structure and behaviour of the Player.
       true ->
         {:error, "Those are not the cards that were just peeked"}
     end
+  end
+
+  def build_research_station(%Player{role: role, city: city} = player, %Board{} = board) do
+    cond do
+      role != :operations_expert -> "Only the operations expert can do this"
+      Board.research_station?(board, city) -> {:error, "#{Cities.city_name(city)} already has a research station "}
+      not Board.may_add_research_station?(board) -> {:error, "There are already 6 research stations"}
+      true ->
+      {
+        :ok,
+        player
+          |> decrement_actions(),
+        board
+          |> Board.add_research_station(city)
+      }
+    end
+  end
+
+  @spec travel_from_research_station_to_any_city(any, PandemicModel.PlayerCard.t(), city :: atom, Board) ::
+          {:error, binary} | {:ok, Player, Board}
+  def travel_from_research_station_to_any_city(%Player{role: role} = player, %PlayerCard{type: :city} = card, city, %Board{} = board) do
+    cond do
+      role != :operations_expert -> {:error, "Only the operations expert can do this"}
+      not player.once_per_turn_available -> {:error, "You have already done this this turn"}
+      card not in player.cards -> {:error, "You don't have that city card"}
+      true ->
+        {
+          :ok,
+          player
+            |> used_once_per_turn()
+            |> decrement_actions()
+            |> remove_card(card)
+            |> set_destination(city),
+          board
+            |> Board.player_arrives_in_city(role, city, :shuttle_flight)
+            |> Board.add_to_player_discard_pile(card)
+        }
+    end
+  end
+
+  def travel_from_research_station_to_any_city(_player, %PlayerCard{} = _card, _city, _board) do
+    {:error, "You must use a city card"}
+  end
+
+  def end_turn(%Player{} = player, %Board{} = board) do
+    {
+      :ok,
+      player
+        |> used_once_per_turn()
+        |> exhaust_actions(),
+      board
+    }
+  end
+
+  def peek_discarded_actions(%Board{} = board) do
+    {
+      :ok,
+      board.player_discard_pile
+        |> Enum.filter(&(&1.type == :action))
+    }
+  end
+
+  def take_discarded_action(%Player{role: role} = player, %PlayerCard{type: :action} = card, %Board{} = board) do
+    cond do
+      role != :contingency_planner -> {:error, "You need to be the Contingency Planner to play this"}
+      card not in board.player_discard_pile -> {:error, "That card is not in the player discard pile"}
+      player.stored_card != nil -> {:error, "You already have one stored card"}
+      true ->
+        {
+          :ok,
+          %{player | stored_card: card |> PlayerCard.mark_stored() }
+            |> decrement_actions(),
+          board
+            |> Board.remove_from_player_discard_pile(card)
+        }
+    end
+  end
+
+  defp used_once_per_turn(%Player{} = player) do
+    %{player | once_per_turn_available: false}
+  end
+
+  defp decrement_actions(%Player{actions_left: actions_left} = player) do
+    %{player | actions_left: actions_left - 1}
+  end
+
+  defp exhaust_actions(%Player{} = player) do
+    %{player | actions_left: 0}
   end
 
   defp remove_card(%Player{cards: cards} = player, %PlayerCard{} = card) do
@@ -325,6 +423,14 @@ This holds the structure and behaviour of the Player.
 
   defp set_destination(%Player{} = player, city) do
     %{player | city: city}
+  end
+
+  defp remove_stored_card_if_used(%Player{role: role, stored_card: stored_card} = player, %PlayerCard{} = player_card) do
+    cond do
+      role != :contingency_planner -> player
+      stored_card != player_card -> player
+      true -> %{player | stored_card: nil}
+    end
   end
 
 end

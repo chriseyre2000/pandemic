@@ -155,12 +155,21 @@ defmodule PandemicModel.Board do
       |> add_to_player_discard_pile(cards)
   end
 
-  def add_to_player_discard_pile(board, cards) when is_list(cards) do
+  def add_to_player_discard_pile(%Board{} = board, cards) when is_list(cards) do
     %{board | player_discard_pile: cards ++ board.player_discard_pile}
   end
 
-  def add_to_player_discard_pile(board, card) do
+  def add_to_player_discard_pile(%Board{} = board, %PlayerCard{stored: true} = _card) do
+    #Stored cards get removed from the game when used a second time
+    board
+  end
+
+  def add_to_player_discard_pile(%Board{} = board, card) do
     %{board | player_discard_pile: [card] ++ board.player_discard_pile}
+  end
+
+  def remove_from_player_discard_pile(%Board{} = board, %PlayerCard{} = card) do
+    %{board | player_discard_pile: board.player_discard_pile -- [card]}
   end
 
   @spec increment_outbreak(__MODULE__.t()) :: __MODULE__.t()

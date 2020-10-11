@@ -4,7 +4,7 @@ defmodule PandemicModel.PlayerCard do
   """
   # @card_type ~w[city event epidemic]a
 
-  defstruct [:city, :type, :action]
+  defstruct [:city, :type, :action, :stored]
 
   def new_city(city) do
     %__MODULE__{city: city, type: :city}
@@ -15,6 +15,10 @@ defmodule PandemicModel.PlayerCard do
   end
 
   def new_event(action) do
-    %__MODULE__{type: :event, action: action}
+    %__MODULE__{type: :event, action: action, stored: false}
+  end
+
+  def mark_stored(%__MODULE__{} = card) do
+    %{card | stored: true}
   end
 end
