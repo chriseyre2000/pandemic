@@ -48,14 +48,35 @@ This holds the structure and behaviour of the Player.
     end
   end
 
-  def direct_flight(%Player{role: role} = player, %PlayerCard{:type => :city, :city => destination}, board) do
+  @doc """
+  This is one of the dispatcher only actions, move another players pawn as if ones own
+  """
+  def drive_ferry(%Player{role: :dispatcher} = player, %Player{role: role} = moving_player, destination, board) do
+    if destination in Cities.city_links(moving_player.city) do
+      {
+        :ok,
+        player
+          |> decrement_actions(),
+        moving_player
+          |> set_destination(destination),
+        board
+          |> Board.player_arrives_in_city(role, destination, :drive_ferry)
+      }
+    else
+      {:error, "Can't drive/ferry from #{ Cities.city_name(moving_player.city)} to #{Cities.city_name(destination)}" }
+    end
+  end
+
+  def direct_flight(%Player{role: role} = player, %PlayerCard{:type => :city, :city => destination} = card, board) do
     {
       :ok,
       player
         |> set_destination(destination)
-        |> decrement_actions(),
+        |> decrement_actions()
+        |> remove_card(card),
       board
         |> Board.player_arrives_in_city(role, destination, :direct_flight)
+        |> Board.add_to_player_discard_pile(card)
     }
   end
 
@@ -63,15 +84,31 @@ This holds the structure and behaviour of the Player.
     {:error, "That's an #{type} card, you need a city card for a direct flight."}
   end
 
-  def charter_flight(%Player{role: role} = player, %PlayerCard{:type => :city, :city => city}, destination, board) do
+  def direct_flight(%Player{role: :dispatcher} = player, %Player{role: role} = moving_player, %PlayerCard{:type => :city, :city => destination} = card, board) do
+    {
+      :ok,
+      player
+        |> decrement_actions()
+        |> remove_card(card),
+      moving_player
+        |> set_destination(destination),
+      board
+        |> Board.player_arrives_in_city(role, destination, :direct_flight)
+        |> Board.add_to_player_discard_pile(card)
+    }
+  end
+
+  def charter_flight(%Player{role: role} = player, %PlayerCard{:type => :city, :city => city} = card, destination, board) do
     if city == player.city do
       {
        :ok,
        player
          |> set_destination(destination)
-         |> decrement_actions(),
+         |> decrement_actions()
+         |> remove_card(card),
        board
          |> Board.player_arrives_in_city(role, destination, :charter_flight)
+         |> Board.add_to_player_discard_pile(card)
       }
     else
       {:error, "You are currently in #{ Cities.city_name(player.city)} but the card was for #{ Cities.city_name(city)}"}
@@ -80,6 +117,24 @@ This holds the structure and behaviour of the Player.
 
   def charter_flight(%Player{} = _player, %PlayerCard{:type => type}, _destination, _board) do
     {:error, "That's an #{type} card, you need a city card for a charter flight."}
+  end
+
+  def charter_flight(%Player{role: :dispatcher} = player, %Player{role: role} = moving_player, %PlayerCard{:type => :city, :city => city} = card, destination, board) do
+    if city == moving_player.city do
+      {
+       :ok,
+       player
+         |> decrement_actions()
+         |> remove_card(card),
+       moving_player
+         |> set_destination(destination),
+       board
+         |> Board.player_arrives_in_city(role, destination, :charter_flight)
+         |> Board.add_to_player_discard_pile(card)
+      }
+    else
+      {:error, "You are currently in #{ Cities.city_name(moving_player.city)} but the card was for #{ Cities.city_name(city)}"}
+    end
   end
 
   def shuttle_flight(%Player{role: role} = player, destination, %Board{} = board) do
@@ -92,6 +147,23 @@ This holds the structure and behaviour of the Player.
           player
             |> set_destination(destination)
             |> decrement_actions(),
+          board
+            |> Board.player_arrives_in_city(role, destination, :shuttle_flight)
+        }
+    end
+  end
+
+  def shuttle_flight(%Player{role: :dispatcher} = player, %Player{role: role} = moving_player, destination, %Board{} = board) do
+    cond do
+      not Board.research_station?(board, moving_player.city) -> {:error, "You are in #{ Cities.city_name(moving_player.city)} which does not have a research station."}
+      not Board.research_station?(board, destination) -> {:error, "There is no research station at #{ Cities.city_name(destination)}"}
+      true ->
+        {
+          :ok,
+          player
+            |> decrement_actions(),
+          moving_player
+            |> set_destination(destination),
           board
             |> Board.player_arrives_in_city(role, destination, :shuttle_flight)
         }
