@@ -473,6 +473,54 @@ This holds the structure and behaviour of the Player.
     end
   end
 
+  def bring_together(%Player{role: :dispatcher} = moving_dispatcher, %Player{} = destination_player, %Board{} = board) do
+    if moving_dispatcher.city == destination_player.city do
+      {:error, "Already in the same city, can't move the dispatcher"}
+    else
+      {
+        :ok,
+        moving_dispatcher
+          |> decrement_actions()
+          |> set_destination(destination_player.city),
+        destination_player,
+        board
+        |> Board.player_arrives_in_city(:dispatcher, destination_player.city, :dispatcher)
+      }
+    end
+  end
+
+  def bring_together(%Player{role: role} = moving_player, %Player{role: :dispatcher} = destination_dispatcher, %Board{} = board) do
+    if moving_player.city == destination_dispatcher.city do
+      {:error, "Already in the same city, can't move the other player"}
+    else
+      {
+        :ok,
+        destination_dispatcher
+          |> decrement_actions(),
+          moving_player
+            |> set_destination(destination_dispatcher.city),
+        board
+        |> Board.player_arrives_in_city(role, destination_dispatcher.city, :dispatcher)
+      }
+    end
+  end
+
+  def bring_together(%Player{role: :dispatcher} = player, %Player{role: role} = moving_player, %Player{} = destination_player, %Board{} = board ) when player != moving_player and player != destination_player do
+    if moving_player.city == destination_player.city do
+      {:error, "Already in the same city, can't move the other player"}
+    else
+      {
+        :ok,
+        player
+          |> decrement_actions(),
+        moving_player
+          |> set_destination(destination_player.city),
+        board
+        |> Board.player_arrives_in_city(role, destination_player.city, :dispatcher)
+      }
+    end
+  end
+
   defp used_once_per_turn(%Player{} = player) do
     %{player | once_per_turn_available: false}
   end
