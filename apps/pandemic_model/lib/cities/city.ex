@@ -2,7 +2,7 @@ defmodule PandemicModel.City do
   @moduledoc """
   This defines the City, with it's properties.
   """
-  @city_keys ~w[id name colour links]a
+  @city_keys ~w[id name colour links location]a
   @city_colour ~w[blue red yellow black]a
 
   @enforce_keys @city_keys
@@ -21,7 +21,7 @@ defmodule PandemicModel.City do
 
   The error handling here is strict (as in no hints as to why it is wrong) as it is intended for internal use only.
   """
-  def new(id, name, colour, links) when is_city(id, name, colour, links) do
-    %__MODULE__{id: id, name: name, colour: colour, links: links}
+  def new(id, name, colour, links, location \\ %{e: 0, n: 0}) when is_city(id, name, colour, links) do
+    %__MODULE__{id: id, name: name, colour: colour, links: links, location: location}
   end
 end

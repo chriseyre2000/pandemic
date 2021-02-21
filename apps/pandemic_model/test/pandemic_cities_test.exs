@@ -21,7 +21,7 @@ defmodule PandemicModel.Cities.Test do
 
   test "Can make a new city" do
     c = City.new(:mancester, "Manchester", :blue, [:london])
-    assert c ==  %City{colour: :blue, id: :mancester, links: [:london], name: "Manchester"}
+    assert c ==  %City{colour: :blue, id: :mancester, links: [:london], name: "Manchester", location: %{n: 0, e: 0}}
   end
 
   test "All city links go to a known city" do
