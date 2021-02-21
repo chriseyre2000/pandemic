@@ -11,13 +11,13 @@ defmodule PandemicModel.Player.Test do
     end
 
     test "Can drive from london to paris", %{board: board, player: player} do
-      assert {:ok, player, board} = player
+      assert {:ok, _player, _board} = player
         |> Player.drive_ferry(:paris, board)
     end
 
     test "Can direct fly to Syndey with the Sydney Card", %{board: board, player: player} do
       sydney_card = PlayerCard.new_city(:sydney)
-      assert {:ok, player, board} = player
+      assert {:ok, _player, _board} = player
         |> Player.direct_flight(sydney_card, board)
     end
 
@@ -27,7 +27,7 @@ defmodule PandemicModel.Player.Test do
     end
 
     test "Charter Flight from london to sydney using the london card will work", %{board: board, player: player, london_card: london_card} do
-      assert {:ok, player, board} = player
+      assert {:ok, _player, _board} = player
         |> Player.charter_flight(london_card, :sydney, board)
     end
 
@@ -59,12 +59,12 @@ defmodule PandemicModel.Player.Test do
       board = board
         |> Board.add_research_station(:london)
 
-      assert {:ok, player, board} = player
+      assert {:ok, _player, _board} = player
         |> Player.shuttle_flight(:atlanta, board)
     end
 
     test "Can build a research station in London", %{board: board, player: player} do
-      assert {:ok, player, board} = player
+      assert {:ok, _player, _board} = player
         |> Player.build_a_research_station(board)
     end
 
@@ -103,7 +103,7 @@ defmodule PandemicModel.Player.Test do
 
       assert 3 == Board.city_infection_count(board, infected_city.id, infected_city.colour)
 
-      assert {:ok, player, board} = player
+      assert {:ok, _player, board} = player
         |> Player.treat_disease(infected_city.colour, board)
 
       assert 2 == Board.city_infection_count(board, infected_city.id, infected_city.colour)
@@ -124,7 +124,7 @@ defmodule PandemicModel.Player.Test do
 
       assert 3 == Board.city_infection_count(board, infected_city.id, infected_city.colour)
 
-      assert {:ok, player, board} = player
+      assert {:ok, _player, board} = player
         |> Player.treat_disease(infected_city.colour, board)
 
       assert 0 == Board.city_infection_count(board, infected_city.id, infected_city.colour)
@@ -136,7 +136,7 @@ defmodule PandemicModel.Player.Test do
       player = player
         |> Player.add_card(london_card)
 
-      assert {:ok, player, player_two, board} = player
+      assert {:ok, player, player_two, _board} = player
         |> Player.share_knowledge(player_two, london_card, board)
 
       refute london_card in player.cards
@@ -149,7 +149,7 @@ defmodule PandemicModel.Player.Test do
       player_two = player_two
         |> Player.add_card(london_card)
 
-      assert {:ok, player, player_two, board} = player
+      assert {:ok, player, player_two, _board} = player
         |> Player.share_knowledge(player_two, london_card, board)
 
       assert london_card in player.cards
@@ -179,7 +179,7 @@ defmodule PandemicModel.Player.Test do
 
       player = player
         |> Player.add_card(paris_card)
-      assert {:ok, player, player_two, board} = player
+      assert {:ok, player, player_two, _board} = player
         |> Player.share_knowledge(player_two, paris_card, board)
 
       refute paris_card in player.cards
@@ -228,7 +228,7 @@ defmodule PandemicModel.Player.Test do
       assert board
         |> Board.disease_active?(:blue)
 
-      assert {:ok, player, board} = player
+      assert {:ok, _player, board} = player
         |> Player.cure_disease(cards, board)
 
       refute board
@@ -251,7 +251,7 @@ defmodule PandemicModel.Player.Test do
 
       assert :scientist == player.role
 
-      assert {:ok, player, board} = player
+      assert {:ok, _player, board} = player
         |> Player.cure_disease(cards, board)
 
       refute board
